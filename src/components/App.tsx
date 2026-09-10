@@ -13,6 +13,8 @@ import { MvrImport } from './MvrImport';
 import { PatchTable } from './PatchTable';
 import { Button, Section } from './ui';
 
+const REPO_URL = 'https://github.com/kellertobias/gma1-patcher';
+
 export default function App() {
   const [doc, setDoc] = useState<ShowDoc | null>(null);
   const [source, setSource] = useState<ShowFiles | null>(null);
@@ -75,7 +77,17 @@ export default function App() {
       <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div>
-            <h1 className="text-base font-semibold">grandMA1 Patcher</h1>
+            <h1 className="text-base font-semibold">
+              grandMA1 Patcher
+              <a
+                href={REPO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="ml-2 align-middle text-xs font-normal text-amber-600 hover:underline dark:text-amber-400"
+              >
+                GitHub ↗
+              </a>
+            </h1>
             <p className="text-xs text-zinc-500">Edit the patch of grandMA1 (v6.x) show files · runs entirely in your browser</p>
           </div>
           {doc && header && (
@@ -133,7 +145,10 @@ export default function App() {
 
         <footer className="pb-6 pt-2 text-xs text-zinc-500">
           Not affiliated with MA Lighting. For interoperability; always check a generated show on onPC or the
-          console before using it in a production.
+          console before using it in a production. ·{' '}
+          <a href={REPO_URL} target="_blank" rel="noreferrer" className="text-amber-600 hover:underline dark:text-amber-400">
+            Source on GitHub
+          </a>
         </footer>
       </main>
     </div>
