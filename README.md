@@ -61,9 +61,6 @@ builder, fixture-type codec, GDTF→type builder, grandMA1 fixture-file exporter
 
 ## Deployment
 
-The site is served from GitHub Pages on the `gh-pages` branch (built with
-`NEXT_PUBLIC_BASE_PATH=/gma1-patcher`). `docs/github-pages-workflow.yml` is a ready-made GitHub
-Actions workflow that rebuilds and deploys on every push to `main`; move it to
-`.github/workflows/deploy.yml` and set Pages' source to "GitHub Actions" to enable auto-deploy
-(pushing a file under `.github/workflows/` needs a token with the `workflow` scope). Until then,
-redeploy manually by rebuilding and pushing `out/` to the `gh-pages` branch.
+GitHub Pages deploys automatically on every push to `main` via
+`.github/workflows/deploy.yml` (Pages source: **GitHub Actions**). The workflow runs the tests,
+builds the static site with `NEXT_PUBLIC_BASE_PATH=/<repo>`, and publishes it. No manual steps.
