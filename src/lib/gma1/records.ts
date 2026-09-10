@@ -82,12 +82,48 @@ export function encodeFixture(f: FixtureRecord): Bytes {
   return w.result();
 }
 
-// Offsets inside the fixture data block (struct SHARED_FIXTURE from +0x68).
+// Fields inside the fixture data block: id_fixture i16, id_channel i16, old index i16, then
+// position VECT3D (3 float32 at +8) and rotation QUATERNION (4 float64 x,y,z,w at +20).
 export interface FixtureBlockFields {
   fixId: number;
   chanId: number;
   oldIndex: number;
   position: [number, number, number];
+  /** Rotation as XYZ Euler angles in degrees (converted from the stored quaternion). */
+  rotation: [number, number, number];
+}
+
+const DEG = Math.PI / 180;
+
+/** Euler degrees (ZYX Tait–Bryan) -> quaternion [x, y, z, w]. Inverse of `quaternionToEuler`. */
+export function eulerToQuaternion([rx, ry, rz]: [number, number, number]): [number, number, number, number] {
+  const cx = Math.cos(rx * DEG / 2), sx = Math.sin(rx * DEG / 2);
+  const cy = Math.cos(ry * DEG / 2), sy = Math.sin(ry * DEG / 2);
+  const cz = Math.cos(rz * DEG / 2), sz = Math.sin(rz * DEG / 2);
+  return [
+    sx * cy * cz - cx * sy * sz,
+    cx * sy * cz + sx * cy * sz,
+    cx * cy * sz - sx * sy * cz,
+    cx * cy * cz + sx * sy * sz,
+  ];
+}
+
+/** Quaternion [x, y, z, w] -> Euler degrees (ZYX Tait–Bryan). */
+export function quaternionToEuler([x, y, z, w]: [number, number, number, number]): [number, number, number] {
+  const round = (v: number) => Math.abs(v) < 1e-6 ? 0 : Number((v / DEG).toFixed(3));
+  const sinp = 2 * (w * y - z * x);
+  const pitch = Math.abs(sinp) >= 1 ? Math.sign(sinp) * Math.PI / 2 : Math.asin(sinp);
+  return [
+    round(Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y))),
+    round(pitch),
+    round(Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))),
+  ];
+}
+
+function readQuaternion(block: Bytes): [number, number, number, number] {
+  const dv = view(block);
+  const q: [number, number, number, number] = [dv.getFloat64(20, true), dv.getFloat64(28, true), dv.getFloat64(36, true), dv.getFloat64(44, true)];
+  return q.every((v) => v === 0) ? [0, 0, 0, 1] : q;
 }
 
 export function readFixtureBlock(block: Bytes): FixtureBlockFields {
@@ -96,6 +132,7 @@ export function readFixtureBlock(block: Bytes): FixtureBlockFields {
     chanId: i16(block, 2),
     oldIndex: i16(block, 4),
     position: [f32(block, 8), f32(block, 12), f32(block, 16)],
+    rotation: quaternionToEuler(readQuaternion(block)),
   };
 }
 
@@ -106,6 +143,7 @@ export function writeFixtureBlock(block: Bytes, f: Partial<FixtureBlockFields> &
   if (f.chanId !== undefined) dv.setInt16(2, f.chanId, true);
   if (f.oldIndex !== undefined) dv.setInt16(4, f.oldIndex, true);
   if (f.position) f.position.forEach((v, i) => dv.setFloat32(8 + 4 * i, v, true));
+  if (f.rotation) eulerToQuaternion(f.rotation).forEach((v, i) => dv.setFloat64(20 + 8 * i, v, true));
   if (f.guid) out.set(f.guid, 76);
   return out;
 }

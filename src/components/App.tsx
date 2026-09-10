@@ -7,7 +7,7 @@ import { buildMvr } from '@/lib/mvr/exportMvr';
 import { findProblems } from '@/lib/gma1/rules';
 import { loadShow } from '@/lib/gma1/show';
 import { AddFixtures } from './AddFixtures';
-import { GdtfPanel } from './GdtfPanel';
+import { FixtureEditor } from './FixtureEditor';
 import { LoadPanel } from './LoadPanel';
 import { MvrImport } from './MvrImport';
 import { PatchTable } from './PatchTable';
@@ -124,7 +124,7 @@ export default function App() {
                 )}
               </div>
             </Section>
-            <GdtfPanel doc={doc} onChange={setDoc} />
+            <FixtureEditor doc={doc} onChange={setDoc} />
             <MvrImport doc={doc} onChange={setDoc} />
             <AddFixtures doc={doc} onChange={setDoc} />
             <PatchTable doc={doc} problems={problems} onChange={setDoc} />
@@ -132,8 +132,8 @@ export default function App() {
         )}
 
         <footer className="pb-6 pt-2 text-xs text-zinc-500">
-          Not affiliated with MA Lighting. The file format was reverse engineered for interoperability; always check a
-          generated show on onPC or the console before using it in a production.
+          Not affiliated with MA Lighting. For interoperability; always check a generated show on onPC or the
+          console before using it in a production.
         </footer>
       </main>
     </div>

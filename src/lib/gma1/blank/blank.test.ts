@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { ShowFiles } from '../../browser';
 import { addFixtureType, addFixtures, addLayer, buildShow, docFromShow } from '../doc';
 import { loadShow } from '../show';
-import { buildFixtureType } from '../buildType';
+import { buildFixtureType, channelsFromGdtf } from '../buildType';
 
 // The bundled empty show is a static asset; read it directly instead of fetching.
 const DIR = join(__dirname, '../../../../public/blank');
@@ -43,7 +43,7 @@ describe('bundled empty show', () => {
         { attribute: 'Tilt', dmxBreak: 1, offsets: [7] },
       ],
     };
-    const built = buildFixtureType({ name: 'LED Mover', manufacturer: 'X', shortName: 'LM', mode, attributes: show.attributes });
+    const built = buildFixtureType({ name: 'LED Mover', manufacturer: 'X', shortName: 'LM', channels: channelsFromGdtf(mode), attributes: show.attributes });
     expect(built.missing).toEqual([]);
     const [doc0, typeIndex] = addFixtureType(docFromShow(show), built.raw);
     expect(doc0.show.types[typeIndex].breaks).toEqual([7]);

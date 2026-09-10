@@ -1,11 +1,43 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { formatAddress, formatRange, parseAddress } from '@/lib/gma1/address';
-import { type ShowDoc, removeFixture, removeLayer, updateFixture } from '@/lib/gma1/doc';
+import { type FixtureModel, type ShowDoc, fixturePlacement, removeFixture, removeLayer, updateFixture } from '@/lib/gma1/doc';
 import { NAME_MAX } from '@/lib/gma1/records';
 import type { Problem } from '@/lib/gma1/rules';
 import { Button, EditCell, Section, inputClass } from './ui';
+
+const AXES = ['X', 'Y', 'Z'] as const;
+
+function PlacementEditor({ doc, f, onChange }: { doc: ShowDoc; f: FixtureModel; onChange: (doc: ShowDoc) => void }) {
+  const { position, rotation } = fixturePlacement(f);
+  const field = (label: string, value: number, set: (v: number) => void) => (
+    <label className="flex items-center gap-1 text-xs text-zinc-500">
+      {label}
+      <input
+        className={`${inputClass} w-20`}
+        defaultValue={value}
+        inputMode="decimal"
+        onBlur={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v) && v !== value) set(v); }}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+      />
+    </label>
+  );
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-1 pl-2">
+      <span className="text-xs font-medium text-zinc-500">Position (m)</span>
+      {AXES.map((ax, i) => field(ax, position[i], (v) => {
+        const next = [...position] as [number, number, number]; next[i] = v;
+        onChange(updateFixture(doc, f.key, { position: next }));
+      }))}
+      <span className="ml-2 text-xs font-medium text-zinc-500">Rotation (°)</span>
+      {AXES.map((ax, i) => field(`Rot${ax}`, rotation[i], (v) => {
+        const next = [...rotation] as [number, number, number]; next[i] = v;
+        onChange(updateFixture(doc, f.key, { rotation: next }));
+      }))}
+    </div>
+  );
+}
 
 function parseId(text: string): number | null {
   const t = text.trim();
@@ -19,6 +51,12 @@ export function PatchTable({ doc, problems, onChange }: {
   onChange: (doc: ShowDoc) => void;
 }) {
   const [filter, setFilter] = useState('');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (key: string) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
   const byKey = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const p of problems) m.set(p.key, [...(m.get(p.key) ?? []), p.message]);
@@ -79,7 +117,8 @@ export function PatchTable({ doc, problems, onChange }: {
                   const issues = byKey.get(f.key) ?? [];
                   const blocking = issues.filter((m) => !doc.baseline.has(m));
                   return (
-                    <tr key={f.key} className={blocking.length ? 'bg-red-50 dark:bg-red-950/30' : issues.length ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
+                    <Fragment key={f.key}>
+                    <tr className={blocking.length ? 'bg-red-50 dark:bg-red-950/30' : issues.length ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
                       <td className="py-0.5 pr-2">
                         <EditCell value={f.fixId ? String(f.fixId) : ''} placeholder="–"
                           commit={(t) => { const id = parseId(t); if (id === null) return false; onChange(updateFixture(doc, f.key, { fixId: id })); return true; }} />
@@ -118,6 +157,7 @@ export function PatchTable({ doc, problems, onChange }: {
                         {f.patch.map((a, i) => formatRange(a, sizes[i] ?? 1)).join(' ')}
                       </td>
                       <td className="py-0.5 text-right">
+                        <Button variant="quiet" className={`!py-0.5 text-xs ${expanded.has(f.key) ? 'text-amber-600' : ''}`} title="Position and rotation" onClick={() => toggle(f.key)}>pos</Button>
                         {f.node ? (
                           f.patch.some((a) => a >= 0) && (
                             <Button variant="quiet" className="!py-0.5 text-xs" onClick={() => onChange(removeFixture(doc, f.key))}>unpatch</Button>
@@ -127,6 +167,12 @@ export function PatchTable({ doc, problems, onChange }: {
                         )}
                       </td>
                     </tr>
+                    {expanded.has(f.key) && (
+                      <tr key={`${f.key}-pos`}>
+                        <td colSpan={8}><PlacementEditor doc={doc} f={f} onChange={onChange} /></td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>

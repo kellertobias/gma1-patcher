@@ -2,7 +2,7 @@ import {
   type FixtureModel, type ShowDoc, addFixtureType, addFixtures, addLayer, appendableLayers, canCreate,
   nextFreeId, updateFixture,
 } from '../gma1/doc';
-import { buildFixtureType } from '../gma1/buildType';
+import { buildFixtureType, channelsFromGdtf } from '../gma1/buildType';
 import type { FixtureType } from '../gma1/types';
 import { NAME_MAX } from '../gma1/records';
 import type { GdtfMode, GdtfType } from './gdtf';
@@ -156,7 +156,7 @@ function createTypeForGroup(doc: ShowDoc, g: MvrTypeGroup):
     name: g.gdtf?.name || g.spec,
     manufacturer: g.gdtf?.manufacturer || '',
     shortName: g.gdtf?.shortName || '',
-    mode: g.gdtfMode,
+    channels: channelsFromGdtf(g.gdtfMode),
     attributes: doc.show.attributes,
   });
   if (!built.raw.channelTypes.length) return 'no usable DMX channels in the GDTF mode';

@@ -40,7 +40,7 @@ describe.skipIf(!has('act training'))('fixture type pool', () => {
   });
 
   it('builds a fixture type from a GDTF mode and patches fixtures of it', async () => {
-    const { buildFixtureType } = await import('./buildType');
+    const { buildFixtureType, channelsFromGdtf } = await import('./buildType');
     const { addFixtureType, addFixtures, addLayer, buildShow, docFromShow } = await import('./doc');
     const { loadShow } = await import('./show');
     const raw = readFileSync;
@@ -56,7 +56,7 @@ describe.skipIf(!has('act training'))('fixture type pool', () => {
         { attribute: 'Dimmer', dmxBreak: 1, offsets: [5] },
       ],
     };
-    const built = buildFixtureType({ name: 'Test Mover', manufacturer: 'GDTF', shortName: 'TM', mode, attributes: attrs });
+    const built = buildFixtureType({ name: 'Test Mover', manufacturer: 'GDTF', shortName: 'TM', channels: channelsFromGdtf(mode), attributes: attrs });
     expect(built.missing).toEqual([]);
 
     const [doc0, typeIndex] = addFixtureType(docFromShow(show), built.raw);

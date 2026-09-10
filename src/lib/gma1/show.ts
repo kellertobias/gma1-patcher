@@ -4,9 +4,10 @@ import { type Member, type PicNode, parseMemberStrict } from './tree';
 import { TAG_CHANNEL, TAG_FIXTURE, TAG_LAYER, TAG_ROOT } from './records';
 import { type FixtureType, parseFixtureTypes } from './types';
 import {
-  type FixtureTypePool, parseAttributeIndex, parseFixtureTypePool,
+  type FixtureTypePool, parseFixtureTypePool,
   serializeFixtureTypePool as serializeFixtureTypePoolBytes,
 } from './fixtureTypes';
+import { type ShowAttribute, parseShowAttributes } from './pretypPool';
 
 /** Oldest file version whose fixture record layout is implemented (5.901). */
 export const MIN_VERSION = 0x170d;
@@ -50,6 +51,8 @@ export interface LoadedShow {
   fixtureTypePool: FixtureTypePool;
   /** Attribute name (e.g. "PAN") -> index in this show's `pretyp` pool. */
   attributes: Map<string, number>;
+  /** Full attribute definitions from `pretyp` (name -> index, pretty name, feature, preset). */
+  attributeInfo: Map<string, ShowAttribute>;
 }
 
 /**
@@ -113,10 +116,12 @@ export function loadShow(baseName: string, shoInput: Bytes | undefined, tgz: Byt
       if (f.children.some((c) => c.tag !== TAG_CHANNEL)) throw new FormatError('showrow: unexpected fixture child');
     }
   }
+  const attributeInfo = pretyp ? parseShowAttributes(pretyp) : new Map<string, ShowAttribute>();
   return {
     baseName, sho, header, entries, showrow, root,
     types: parseFixtureTypes(ft),
     fixtureTypePool: parseFixtureTypePool(ft),
-    attributes: pretyp ? parseAttributeIndex(pretyp) : new Map(),
+    attributes: new Map([...attributeInfo].map(([name, a]) => [name, a.index])),
+    attributeInfo,
   };
 }

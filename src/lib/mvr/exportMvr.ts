@@ -1,7 +1,7 @@
 import { zipSync } from 'fflate';
 import { encodeLatin1 } from '../gma1/binary';
 import { LINE_SIZE } from '../gma1/address';
-import type { ShowDoc } from '../gma1/doc';
+import { type ShowDoc, fixturePlacement } from '../gma1/doc';
 import { buildGdtf, typeChannels } from './buildGdtf';
 
 const esc = (s: string) =>
@@ -19,12 +19,22 @@ function uuid(seed: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
-/** Identity matrix with a metre offset, in MVR's "{u}{v}{w}{o}" millimetre form. */
-function matrix(pos: [number, number, number] | undefined): string {
-  const [x, y, z] = pos ?? [0, 0, 0];
-  const mm = (v: number) => Math.round(v * 1000);
-  return `{1.000000,0.000000,0.000000}{0.000000,1.000000,0.000000}{0.000000,0.000000,1.000000}` +
-    `{${mm(x)}.000000,${mm(y)}.000000,${mm(z)}.000000}`;
+const DEG = Math.PI / 180;
+
+/** MVR "{u}{v}{w}{o}" matrix (millimetres) from a position (m) and XYZ Euler rotation (deg). */
+function matrix(pos: [number, number, number], rot: [number, number, number]): string {
+  const [rx, ry, rz] = rot.map((d) => d * DEG);
+  const cx = Math.cos(rx), sx = Math.sin(rx), cy = Math.cos(ry), sy = Math.sin(ry), cz = Math.cos(rz), sz = Math.sin(rz);
+  // R = Rz * Ry * Rx (rows are the basis vectors u, v, w).
+  const r = [
+    [cy * cz, cy * sz, -sy],
+    [sx * sy * cz - cx * sz, sx * sy * sz + cx * cz, sx * cy],
+    [cx * sy * cz + sx * sz, cx * sy * sz - sx * cz, cx * cy],
+  ];
+  const n = (v: number) => v.toFixed(6);
+  const rows = r.map((row) => `{${row.map(n).join(',')}}`).join('');
+  const mm = (v: number) => (v * 1000).toFixed(6);
+  return `${rows}{${mm(pos[0])},${mm(pos[1])},${mm(pos[2])}}`;
 }
 
 export interface MvrExportReport {
@@ -79,9 +89,10 @@ export function buildMvr(doc: ShowDoc): { bytes: Uint8Array; report: MvrExportRe
           const abs = address + 1; // MVR addresses are 1-based
           const addr = `${Math.floor(address / LINE_SIZE) + 1}.${(address % LINE_SIZE) + 1}`;
           const fid = f.fixId > 0 ? f.fixId : f.chanId;
+          const place = fixturePlacement(f);
           return (
             `        <Fixture name="${esc(f.name)}" uuid="${uuid(`${layer.key}/${f.key}`)}">\n` +
-            `          <Matrix>${matrix(f.position)}</Matrix>\n` +
+            `          <Matrix>${matrix(place.position, place.rotation)}</Matrix>\n` +
             `          <GDTFSpec>${esc(spec)}</GDTFSpec>\n` +
             `          <GDTFMode>Default</GDTFMode>\n` +
             `          <Addresses><Address break="0">${abs}</Address></Addresses>\n` +

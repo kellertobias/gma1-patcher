@@ -30,6 +30,8 @@ export interface FixtureModel {
   patch: number[];
   /** Stage position in metres; undefined keeps the stored position. */
   position?: [number, number, number];
+  /** Rotation as XYZ Euler degrees; undefined keeps the stored rotation. */
+  rotation?: [number, number, number];
   /** Set for fixtures that exist in the loaded show (their order and layer are fixed). */
   node?: PicNode;
   /** Where a new fixture came from, e.g. "MVR". */
@@ -60,6 +62,7 @@ export function docFromShow(show: LoadedShow): ShowDoc {
     for (const fn of ln.children) {
       const r = decodeFixture(fn.head);
       const b = readFixtureBlock(r.block);
+      void b; // position/rotation stay undefined (overrides) so unchanged fixtures round-trip exactly
       doc.fixtures.push({
         key: newKey('F'), layerKey, name: r.name, fixId: b.fixId, chanId: b.chanId,
         typeIndex: r.typeIndex, patch: [...r.patch], node: fn,
@@ -126,7 +129,7 @@ export function addFixtures(doc: ShowDoc, fixtures: Omit<FixtureModel, 'key' | '
   return { ...doc, fixtures: [...doc.fixtures, ...fixtures.map((f) => ({ ...f, key: newKey('F') }))] };
 }
 
-export type FixtureChange = Partial<Pick<FixtureModel, 'name' | 'fixId' | 'chanId' | 'patch' | 'position' | 'layerKey'>>;
+export type FixtureChange = Partial<Pick<FixtureModel, 'name' | 'fixId' | 'chanId' | 'patch' | 'position' | 'rotation' | 'layerKey'>>;
 
 export function updateFixture(doc: ShowDoc, key: string, change: FixtureChange): ShowDoc {
   return {
@@ -152,6 +155,15 @@ export function nextFreeId(doc: ShowDoc, kind: 'fixId' | 'chanId'): number {
   return Math.max(0, ...doc.fixtures.map((f) => f[kind])) + 1;
 }
 
+/** Current position and rotation of a fixture: the edited override, else the stored values. */
+export function fixturePlacement(f: FixtureModel): { position: [number, number, number]; rotation: [number, number, number] } {
+  const stored = f.node ? readFixtureBlock(decodeFixture(f.node.head).block) : undefined;
+  return {
+    position: f.position ?? stored?.position ?? [0, 0, 0],
+    rotation: f.rotation ?? stored?.rotation ?? [0, 0, 0],
+  };
+}
+
 export function isDirty(doc: ShowDoc): boolean {
   return doc.fixtures.some((f) => !f.node || recordChanged(f)) || doc.layers.some((l) => !l.node);
 }
@@ -175,7 +187,7 @@ function applyFields(rec: FixtureRecord, f: FixtureModel, extra: { oldIndex?: nu
     ...rec,
     name: f.name,
     patch: f.patch,
-    block: writeFixtureBlock(rec.block, { fixId: f.fixId, chanId: f.chanId, position: f.position, ...extra }),
+    block: writeFixtureBlock(rec.block, { fixId: f.fixId, chanId: f.chanId, position: f.position, rotation: f.rotation, ...extra }),
   });
 }
 
