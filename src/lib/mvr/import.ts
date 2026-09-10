@@ -96,7 +96,7 @@ export function applyMvr(doc: ShowDoc, groups: MvrTypeGroup[], mapping: Record<s
     }
     const typeIndex = choice;
     if (typeIndex === null || typeIndex === undefined) {
-      report.skipped.push(`${g.fixtures.length} × ${g.spec} (${g.mode}): no grandMA1 type chosen`);
+      report.skipped.push(`${g.fixtures.length} × ${g.spec} (${g.mode}): no gma1 type chosen`);
       continue;
     }
     const type = next.show.types[typeIndex];
@@ -144,7 +144,7 @@ export function applyMvr(doc: ShowDoc, groups: MvrTypeGroup[], mapping: Record<s
   return [next, report];
 }
 
-/** Whether a GDTF group can have a grandMA1 type generated from it (needs its GDTF mode). */
+/** Whether a GDTF group can have a gma1 type generated from it (needs its GDTF mode). */
 export function canCreateType(group: MvrTypeGroup): boolean {
   return !!group.gdtfMode && group.gdtfMode.channels.some((c) => c.offsets.length > 0);
 }

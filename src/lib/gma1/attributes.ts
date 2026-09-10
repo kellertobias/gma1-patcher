@@ -1,8 +1,8 @@
 /**
- * grandMA1 attribute vocabulary and the GDTF→grandMA1 attribute mapping, shared by the fixture-type
- * builder and the grandMA1 fixture-file (`_FIXTURETYPE`) exporter.
+ * gma1 attribute vocabulary and the GDTF→gma1 attribute mapping, shared by the fixture-type
+ * builder and the gma1 fixture-file (`_FIXTURETYPE`) exporter.
  *
- * Each grandMA1 attribute belongs to a feature and a preset type (as in the `pretyp` pool) and has a
+ * Each gma1 attribute belongs to a feature and a preset type (as in the `pretyp` pool) and has a
  * visualizer effect and a short label. Values are the software's standard vocabulary.
  */
 export interface AttributeInfo {
@@ -25,7 +25,7 @@ function attr(feature: string, preset: string, eff: string, label: string): Attr
   return { feature, preset, eff, effId: EFFECT_ID[eff] ?? 0, label };
 }
 
-/** grandMA1 attribute name -> its feature/preset/effect/label. */
+/** gma1 attribute name -> its feature/preset/effect/label. */
 export const GMA_ATTRIBUTE: Record<string, AttributeInfo> = {
   PAN: attr('PAN/TILT', 'PAN/TILT', 'PAN', 'Pan'),
   TILT: attr('PAN/TILT', 'PAN/TILT', 'TILT', 'Tilt'),
@@ -52,7 +52,7 @@ export const GMA_ATTRIBUTE: Record<string, AttributeInfo> = {
   CONTROL: attr('CONTROL', 'CONTROL', 'NONE', 'Ctrl'),
 };
 
-/** GDTF attribute name (or common alias) -> grandMA1 attribute name. */
+/** GDTF attribute name (or common alias) -> gma1 attribute name. */
 export const GDTF_TO_GMA: Record<string, string> = {
   Pan: 'PAN', Tilt: 'TILT', Dimmer: 'DIM', Shutter1: 'STROBE', Strobe: 'STROBE',
   Zoom: 'ZOOM', Focus1: 'FOCUS', Focus: 'FOCUS', Iris: 'IRIS', Frost1: 'FROST', Frost: 'FROST',
@@ -64,12 +64,12 @@ export const GDTF_TO_GMA: Record<string, string> = {
   Gobo2: 'GOBO2', Gobo2Pos: 'GOBO2 ROT',
 };
 
-/** Map a GDTF attribute to a grandMA1 attribute name (falls back to a spaced upper-case form). */
+/** Map a GDTF attribute to a gma1 attribute name (falls back to a spaced upper-case form). */
 export function gmaAttributeName(gdtf: string): string {
   return GDTF_TO_GMA[gdtf] ?? gdtf.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toUpperCase();
 }
 
-/** grandMA1 attribute name -> a canonical GDTF attribute name (for MVR/GDTF export). */
+/** gma1 attribute name -> a canonical GDTF attribute name (for MVR/GDTF export). */
 export const GMA_TO_GDTF: Record<string, string> = {
   PAN: 'Pan', TILT: 'Tilt', DIM: 'Dimmer', STROBE: 'Shutter1', ZOOM: 'Zoom', FOCUS: 'Focus1',
   IRIS: 'Iris', FROST: 'Frost1', PRISMA1: 'Prism1', RED: 'ColorAdd_R', GREEN: 'ColorAdd_G',
@@ -78,7 +78,7 @@ export const GMA_TO_GDTF: Record<string, string> = {
   'GOBO1 ROT': 'Gobo1PosRotate', GOBO2: 'Gobo2', 'GOBO2 ROT': 'Gobo2PosRotate', CONTROL: 'Control1',
 };
 
-/** GDTF attribute name for a grandMA1 attribute (falls back to a camel-case form). */
+/** GDTF attribute name for a gma1 attribute (falls back to a camel-case form). */
 export function gdtfAttributeName(gma: string): string {
   if (GMA_TO_GDTF[gma]) return GMA_TO_GDTF[gma];
   return gma.toLowerCase().replace(/(^|[ _])([a-z])/g, (_, __, c) => c.toUpperCase()).replace(/[ _]/g, '');

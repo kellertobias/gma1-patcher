@@ -1,6 +1,6 @@
-# grandMA1 (v6.x) show file format
+# gma1 (v6.x) show file format
 
-Notes on the grandMA1 (v6.x) show file format, for interoperability — reading and writing the patch
+Notes on the gma1 (v6.x) show file format, for interoperability — reading and writing the patch
 of an existing show. Checked against a set of factory demo shows.
 
 All integers are little-endian. "Verified" = confirmed against the demo files.
@@ -147,5 +147,5 @@ features, ~112 attributes (the standard set). Read from the loaded show at run t
 
 ## 6. Open points
 
-- Not yet tested by loading an edited show in grandMA onPC / on a console.
+- Not yet tested by loading an edited show in gma1 onPC / on a console.
 - Only file versions ≥ 5.901 (0x170D) are handled.

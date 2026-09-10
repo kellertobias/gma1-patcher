@@ -1,7 +1,7 @@
 import { ByteWriter, type Bytes, FormatError, equalBytes, view } from './binary';
 
 /**
- * One serialized object of a grandMA1 pool member.
+ * One serialized object of a gma1 pool member.
  *
  * On disk: PICID ('P' 'I' u16 tag, bit 31 = empty) · PICSTATUS · payload · [collection] · u32 size,
  * where size counts from the PICID to the trailer and a collection is

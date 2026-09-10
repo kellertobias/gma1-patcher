@@ -3,7 +3,7 @@ import { encodeLatin1, u32, view } from '../gma1/binary';
 import type { RawFixtureType } from '../gma1/fixtureTypes';
 import { gdtfAttributeName } from '../gma1/attributes';
 
-/** A DMX channel of a grandMA1 fixture type, in slot order. */
+/** A DMX channel of a gma1 fixture type, in slot order. */
 export interface TypeChannel {
   attribute: string; // GDTF attribute name
   /** 1-based slot offsets: [coarse] or [coarse, fine]. */
@@ -18,7 +18,7 @@ function channelKind(block: Uint8Array): number {
 /**
  * Flatten a fixture type into DMX channels in slot order. Each coarse channel type takes the next
  * slot; a following fine channel type extends it to 16-bit. `attrName` maps a pretyp attribute index
- * to its grandMA1 name.
+ * to its gma1 name.
  */
 export function typeChannels(type: RawFixtureType, attrName: (index: number) => string): TypeChannel[] {
   const channels: TypeChannel[] = [];
@@ -38,8 +38,8 @@ const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /**
- * Build a minimal but valid GDTF (DIN SPEC 15800) for a grandMA1 fixture type: attribute definitions
- * for the attributes used, one geometry, and a single DMX mode with one DMX channel per grandMA1
+ * Build a minimal but valid GDTF (DIN SPEC 15800) for a gma1 fixture type: attribute definitions
+ * for the attributes used, one geometry, and a single DMX mode with one DMX channel per gma1
  * channel. Enough for MVR consumers to place and address the fixture.
  */
 export function buildGdtf(name: string, manufacturer: string, shortName: string, channels: TypeChannel[]): {
@@ -67,7 +67,7 @@ export function buildGdtf(name: string, manufacturer: string, shortName: string,
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<GDTF DataVersion="1.2">\n` +
     `  <FixtureType Name="${esc(name)}" ShortName="${esc(shortName || name)}" LongName="${esc(name)}" ` +
-    `Manufacturer="${esc(manufacturer || 'grandMA1')}" Description="Exported from a grandMA1 show" ` +
+    `Manufacturer="${esc(manufacturer || 'gma1')}" Description="Exported from a gma1 show" ` +
     `FixtureTypeID="00000000-0000-0000-0000-000000000000" RefFT="">\n` +
     `    <AttributeDefinitions>\n` +
     `      <ActivationGroups/>\n` +
@@ -90,7 +90,7 @@ export function buildGdtf(name: string, manufacturer: string, shortName: string,
     `</GDTF>\n`;
   const bytes = zipSync({ 'description.xml': encodeLatin1(xml) });
   const clean = (s: string) => s.replace(/[\\/:*?"<>|@]/g, ' ').trim();
-  return { fileName: `${clean(manufacturer || 'grandMA1')}@${clean(name)}.gdtf`, bytes };
+  return { fileName: `${clean(manufacturer || 'gma1')}@${clean(name)}.gdtf`, bytes };
 }
 
 export { view };

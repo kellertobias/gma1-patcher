@@ -44,7 +44,7 @@ export interface MvrExportReport {
 }
 
 /**
- * Export the show as an MVR scene: one MVR layer per grandMA1 layer, a Fixture per patched fixture,
+ * Export the show as an MVR scene: one MVR layer per gma1 layer, a Fixture per patched fixture,
  * and an embedded minimal GDTF per fixture type used. Unpatched fixtures and fixtures of a type that
  * has no channels are skipped.
  */
@@ -63,7 +63,7 @@ export function buildMvr(doc: ShowDoc): { bytes: Uint8Array; report: MvrExportRe
     if (!raw) return null;
     const channels = typeChannels(raw, attrName);
     if (!channels.length) return null;
-    const { fileName, bytes } = buildGdtf(raw.name, raw.manufacturer ?? 'grandMA1', raw.shortName ?? raw.name, channels);
+    const { fileName, bytes } = buildGdtf(raw.name, raw.manufacturer ?? 'gma1', raw.shortName ?? raw.name, channels);
     files[fileName] = bytes;
     gdtfByType.set(typeIndex, { spec: fileName, bytes });
     return fileName;

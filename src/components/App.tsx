@@ -78,7 +78,7 @@ export default function App() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div>
             <h1 className="text-base font-semibold">
-              grandMA1 Patcher
+              gma1 Patcher
               <a
                 href={REPO_URL}
                 target="_blank"
@@ -88,7 +88,7 @@ export default function App() {
                 GitHub ↗
               </a>
             </h1>
-            <p className="text-xs text-zinc-500">Edit the patch of grandMA1 (v6.x) show files · runs entirely in your browser</p>
+            <p className="text-xs text-zinc-500">Edit the patch of gma1 (v6.x) show files · runs entirely in your browser</p>
           </div>
           {doc && header && (
             <div className="flex flex-wrap items-center gap-2">
@@ -144,7 +144,7 @@ export default function App() {
         )}
 
         <footer className="pb-6 pt-2 text-xs text-zinc-500">
-          Not affiliated with MA Lighting. For interoperability; always check a generated show on onPC or the
+          Not affiliated with the manufacturer. For interoperability; always check a generated show on onPC or the
           console before using it in a production. ·{' '}
           <a href={REPO_URL} target="_blank" rel="noreferrer" className="text-amber-600 hover:underline dark:text-amber-400">
             Source on GitHub

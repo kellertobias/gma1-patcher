@@ -1,7 +1,7 @@
 import { type Bytes, decodeLatin1, i32, u32 } from './binary';
 import { parseMember } from './tree';
 
-/** One grandMA1 attribute as defined in a show's `pretyp` pool. */
+/** One gma1 attribute as defined in a show's `pretyp` pool. */
 export interface ShowAttribute {
   name: string;
   pretty: string;

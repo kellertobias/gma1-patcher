@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "grandMA1 Patcher",
-  description: "Edit the patch of grandMA1 show files in the browser, with MVR and GDTF import.",
+  title: "gma1 Patcher",
+  description: "Edit the patch of gma1 show files in the browser, with MVR and GDTF import.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -22,7 +22,7 @@ export interface ShoHeader {
 }
 
 export function parseSho(sho: Bytes): ShoHeader {
-  if (sho.length < 8 || sho[0] !== 0x41 || sho[1] !== 0x4d) throw new FormatError('not a grandMA1 .sho file');
+  if (sho.length < 8 || sho[0] !== 0x41 || sho[1] !== 0x4d) throw new FormatError('not a gma1 .sho file');
   const version = u16(sho, 2);
   const strings: string[] = [];
   let p = 4;

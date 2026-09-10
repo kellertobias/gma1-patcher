@@ -89,7 +89,7 @@ export function MvrImport({ doc, onChange }: { doc: ShowDoc; onChange: (doc: Sho
     >
       {!mvr && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Load an MVR scene (e.g. exported from Vectorworks, Capture or grandMA3). Fixtures whose fixture ID already
+          Load an MVR scene (e.g. exported from Vectorworks, Capture, etc.). Fixtures whose fixture ID already
           exists in the show get the MVR address; the others are added. Each GDTF type is mapped to a fixture type in
           the show — the DMX footprint is compared for you.
         </p>
@@ -108,7 +108,7 @@ export function MvrImport({ doc, onChange }: { doc: ShowDoc; onChange: (doc: Sho
                   <th className="py-1 pr-2">GDTF type / mode</th>
                   <th className="w-16 py-1 pr-2 text-right">Count</th>
                   <th className="w-24 py-1 pr-2 text-right">GDTF slots</th>
-                  <th className="py-1 pr-2">grandMA1 fixture type</th>
+                  <th className="py-1 pr-2">gma1 fixture type</th>
                   <th className="w-24 py-1 text-right">MA1 slots</th>
                 </tr>
               </thead>

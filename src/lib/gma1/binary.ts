@@ -1,6 +1,6 @@
 export type Bytes = Uint8Array;
 
-/** The input does not match the grandMA1 file format as far as it is understood. */
+/** The input does not match the gma1 file format as far as it is understood. */
 export class FormatError extends Error {
   name = 'FormatError';
 }

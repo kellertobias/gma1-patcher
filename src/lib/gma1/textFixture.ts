@@ -3,11 +3,11 @@ import type { GmaChannel } from './buildType';
 import type { ShowAttribute } from './pretypPool';
 
 /**
- * Export a fixture as a grandMA1 fixture-library file (the `_FIXTURETYPE { … }` text the console
+ * Export a fixture as a gma1 fixture-library file (the `_FIXTURETYPE { … }` text the console
  * imports). One `_CHANTYPE` per channel, plus a `_TYPE FINE` channel type for 16-bit channels.
  *
  * Feature/preset/label come from the loaded show's attribute definitions when available (so they
- * match that grandMA1 exactly), falling back to a built-in vocabulary for common attributes.
+ * match that gma1 exactly), falling back to a built-in vocabulary for common attributes.
  */
 export interface TextFixtureInput {
   name: string;

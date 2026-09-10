@@ -1,6 +1,6 @@
-# grandMA1 Patcher
+# gma1 Patcher
 
-Browser app to edit the DMX patch of grandMA1 (v6.x) show files. No server: it is a static Next.js
+Browser app to edit the DMX patch of gma1 (v6.x) show files. No server: it is a static Next.js
 export, show files are read and written in the browser only.
 
 **Live: https://kellertobias.github.io/gma1-patcher/**
@@ -10,14 +10,14 @@ export, show files are read and written in the browser only.
 - Edit fixture IDs, channel IDs, names, DMX addresses and stage position/rotation
   (X/Y/Z + RotX/RotY/RotZ); unpatch fixtures.
 - **Export the show as an MVR** scene (position + rotation) with an embedded GDTF per fixture type
-  (for visualizers, Vectorworks, grandMA3, …).
+  (for visualizers, Vectorworks, etc.).
 - **Fixture editor:** build a fixture type by hand — a list of channels using the show's own
-  attributes — or load a GDTF mode, then add it to the show or download it as a grandMA1
+  attributes — or load a GDTF mode, then add it to the show or download it as a gma1
   fixture-library file (`_FIXTURETYPE .TXT`). The attribute picker only offers attributes that exist
   in the loaded show.
 - Add fixtures of any type already in the show.
 - Import an MVR: fixtures whose fixture ID exists are re-addressed, the others are added. Each GDTF
-  type/mode is mapped to a grandMA1 fixture type — or a new type is generated from the GDTF; the DMX
+  type/mode is mapped to a gma1 fixture type — or a new type is generated from the GDTF; the DMX
   footprints are compared.
 - Generate the show again (`.sho` + `.tar.gz`, optionally zipped).
 
@@ -30,7 +30,7 @@ export, show files are read and written in the browser only.
 - **The empty show** is assembled entirely by the app: `pretyp` (the standard attribute vocabulary)
   is regenerated from a table, the content pools (fixtures, DMX, groups, presets, cues, effects,
   views) are written empty, and small device/config records are the factory defaults. It contains no
-  show content. **It has not been verified on real hardware** — load it once in grandMA onPC before
+  show content. **It has not been verified on real hardware** — load it once in gma1 onPC before
   relying on it; the "blank show from your console" path is the guaranteed alternative.
 
 ## Limits
@@ -41,7 +41,7 @@ export, show files are read and written in the browser only.
 - Generated fixture types cover the DMX footprint and attribute links (so the patch is correct);
   photometric data, gel/gobo wheels and channel functions are minimal.
 - The file format was reverse engineered (see `docs/FORMAT.md`). Always load a generated show in
-  grandMA onPC or on the console and check it before using it in a production.
+  gma1 onPC or on the console and check it before using it in a production.
 
 ## Development
 
@@ -52,11 +52,11 @@ npm test         # unit tests; the demo-show tests need GMA1_SAMPLES (see below)
 npm run build    # static site in out/
 ```
 
-The show-file tests use a set of grandMA1 factory demo shows, which are not part of this repository.
+The show-file tests use a set of gma1 factory demo shows, which are not part of this repository.
 Point `GMA1_SAMPLES` at a folder containing them (each as `<name>.sho` + `<name>.tar.gz`).
 
 Code: `src/lib/gma1` (show format: tar/gzip, object tree, records, rules, editable document and
-builder, fixture-type codec, GDTF→type builder, grandMA1 fixture-file exporter, empty-show loader),
+builder, fixture-type codec, GDTF→type builder, gma1 fixture-file exporter, empty-show loader),
 `src/lib/mvr` (MVR/GDTF parsing and import), `src/components` (UI).
 
 ## Deployment

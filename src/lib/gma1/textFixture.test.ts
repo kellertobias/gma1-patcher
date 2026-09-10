@@ -11,7 +11,7 @@ const channels: GmaChannel[] = [
   { attribute: 'TILT', sixteenBit: false, dmxBreak: 1 },
 ];
 
-describe('grandMA1 fixture text export', () => {
+describe('gma1 fixture text export', () => {
   it('emits a _FIXTURETYPE block with a channel type per attribute and a FINE for 16-bit', () => {
     const { text, missing } = buildGma1FixtureText({ name: 'LED Mover', manufacturer: 'Cameo', shortName: 'LM', channels, headMover: isMover(channels) });
     expect(missing).toEqual([]);
@@ -24,7 +24,7 @@ describe('grandMA1 fixture text export', () => {
     expect(text.match(/_ATTRIBUT/g)!.length).toBe(7); // 6 coarse + 1 fine
   });
 
-  it('reports attributes with no grandMA1 vocabulary', () => {
+  it('reports attributes with no gma1 vocabulary', () => {
     const { missing } = buildGma1FixtureText({
       name: 'X', manufacturer: 'Y', shortName: 'X',
       channels: [{ attribute: 'SOMETHINGWEIRD', sixteenBit: false, dmxBreak: 1 }],

@@ -12,7 +12,7 @@ import { decodeFixture, readFixtureBlock } from './records';
 import { loadShow } from './show';
 import { parseMemberStrict } from './tree';
 
-// grandMA1 factory demo shows are not part of the repo. Point GMA1_SAMPLES at a folder holding
+// gma1 factory demo shows are not part of the repo. Point GMA1_SAMPLES at a folder holding
 // them (each as <name>.sho + <name>.tar.gz) to run these tests.
 const SAMPLES = process.env.GMA1_SAMPLES ?? '';
 const has = (name: string) => !!SAMPLES && existsSync(join(SAMPLES, `${name}.sho`));

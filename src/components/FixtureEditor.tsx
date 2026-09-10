@@ -90,7 +90,7 @@ export function FixtureEditor({ doc, onChange }: { doc: ShowDoc; onChange: (doc:
     download(gma1FixtureFileName(d.manufacturer, d.name), encodeLatin1(text));
     setNote(missing.length
       ? `Downloaded ${d.name}.TXT — attributes with no match: ${missing.join(', ')}`
-      : `Downloaded a grandMA1 fixture file for "${d.name}". Import it via the console's fixture library.`);
+      : `Downloaded a gma1 fixture file for "${d.name}". Import it via the console's fixture library.`);
   }
 
   return (
@@ -105,8 +105,8 @@ export function FixtureEditor({ doc, onChange }: { doc: ShowDoc; onChange: (doc:
     >
       {!drafts.length && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Build a grandMA1 fixture type by hand or from a GDTF mode — no MVR needed. Add it to the show, or
-          download it as a grandMA1 fixture-library file (<code>.TXT</code>) for import on the console. Only
+          Build a gma1 fixture type by hand or from a GDTF mode — no MVR needed. Add it to the show, or
+          download it as a gma1 fixture-library file (<code>.TXT</code>) for import on the console. Only
           attributes that exist in this show can be chosen.
         </p>
       )}

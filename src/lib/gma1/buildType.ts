@@ -5,9 +5,9 @@ import type { GdtfMode } from '../mvr/gdtf';
 
 const NAME_MAX = 18;
 
-/** A channel of a grandMA1 fixture type: a grandMA1 attribute, its resolution, and its DMX break. */
+/** A channel of a gma1 fixture type: a gma1 attribute, its resolution, and its DMX break. */
 export interface GmaChannel {
-  /** grandMA1 attribute name (e.g. "PAN"), as used in the show's pretyp pool. */
+  /** gma1 attribute name (e.g. "PAN"), as used in the show's pretyp pool. */
   attribute: string;
   sixteenBit: boolean;
   dmxBreak: number;
@@ -68,11 +68,11 @@ export interface BuildTypeInput {
 export interface BuiltType {
   raw: RawFixtureType;
   usedAttributes: string[];
-  /** grandMA1 attribute names used by a channel but not present in the show's pretyp. */
+  /** gma1 attribute names used by a channel but not present in the show's pretyp. */
   missing: string[];
 }
 
-/** Convert a GDTF DMX mode to grandMA1 channels, mapping GDTF attribute names to grandMA1 names. */
+/** Convert a GDTF DMX mode to gma1 channels, mapping GDTF attribute names to gma1 names. */
 export function channelsFromGdtf(mode: GdtfMode): GmaChannel[] {
   return mode.channels
     .filter((c) => c.offsets.length > 0) // virtual channels take no DMX slot
@@ -91,7 +91,7 @@ function channelFunction(attr: string) {
 }
 
 /**
- * Build a grandMA1 fixture type from grandMA1 channels. Channels keep their order within each DMX
+ * Build a gma1 fixture type from gma1 channels. Channels keep their order within each DMX
  * break; a 16-bit channel adds a fine channel type after its coarse one. Attributes are resolved by
  * name against the show's pretyp pool; unknown ones are reported in `missing` and skipped.
  */
