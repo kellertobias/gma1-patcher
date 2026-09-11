@@ -5,7 +5,7 @@ import { type ShowFiles, download, downloadShow, saveTemplate } from '@/lib/brow
 import { BuildError, type ShowDoc, buildShow, docFromShow, isDirty } from '@/lib/gma1/doc';
 import { buildMvr } from '@/lib/mvr/exportMvr';
 import { findProblems } from '@/lib/gma1/rules';
-import { loadShow } from '@/lib/gma1/show';
+import { MAX_SHOW_NAME, loadShow, showFileName } from '@/lib/gma1/show';
 import { AddFixtures } from './AddFixtures';
 import { FixtureEditor } from './FixtureEditor';
 import { LoadPanel } from './LoadPanel';
@@ -21,6 +21,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [asZip, setAsZip] = useState(false);
+  const [showName, setShowName] = useState('');
 
   const problems = useMemo(() => (doc ? findProblems(doc) : []), [doc]);
   const blocking = useMemo(() => (doc ? problems.filter((p) => !doc.baseline.has(p.message)) : []), [doc, problems]);
@@ -31,7 +32,8 @@ export default function App() {
     try {
       setDoc(docFromShow(loadShow(files.baseName, files.sho, files.tgz)));
       setSource(files);
-      if (fromTemplate) setNotice(`Started from the blank template “${files.baseName}”. Export keeps that file name.`);
+      setShowName(showFileName(files.baseName));
+      if (fromTemplate) setNotice('Started from the blank template. Set the show name next to “Generate show file”.');
     } catch (e) {
       setError(`Could not read the show: ${(e as Error).message}`);
     }
@@ -48,7 +50,7 @@ export default function App() {
     if (!doc) return;
     setError(null);
     try {
-      const out = buildShow(doc);
+      const out = buildShow(doc, { name: showName });
       downloadShow({ baseName: out.baseName, sho: out.sho, tgz: out.tgz }, asZip);
       setNotice(`Generated “${out.baseName}”: ${out.fixtures} fixtures, ${out.channels} channels. ` +
         'Copy both files into the show folder of the console or onPC and load the show there to check the patch.');
@@ -95,6 +97,15 @@ export default function App() {
               <span className="text-sm text-zinc-600 dark:text-zinc-400">
                 <strong className="text-zinc-900 dark:text-zinc-100">{header.title}</strong> · file version {header.version}
               </span>
+              <label className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400" title="Letters and digits, up to 5 characters">
+                Name
+                <input
+                  value={showName}
+                  onChange={(e) => setShowName(e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, MAX_SHOW_NAME).toLowerCase())}
+                  className="w-16 rounded border border-zinc-300 bg-white px-1.5 py-0.5 font-mono text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                />
+                <span className="font-mono">.sho</span>
+              </label>
               <label className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
                 <input type="checkbox" checked={asZip} onChange={(e) => setAsZip(e.target.checked)} /> as ZIP
               </label>

@@ -11,6 +11,8 @@ export interface GmaChannel {
   attribute: string;
   sixteenBit: boolean;
   dmxBreak: number;
+  /** Where the channel came from (the GDTF attribute), for reports and stand-in choice. */
+  source?: string;
 }
 
 // Value blocks are constructed field by field from the documented layouts (docs/FORMAT.md).
@@ -68,15 +70,32 @@ export interface BuildTypeInput {
 export interface BuiltType {
   raw: RawFixtureType;
   usedAttributes: string[];
-  /** gma1 attribute names used by a channel but not present in the show's pretyp. */
-  missing: string[];
+  /**
+   * Channels whose attribute is not in the show's pretyp (or is already used in this type), with the
+   * stand-in attribute (DUMMY) they were given instead.
+   */
+  substituted: { from: string; to: string }[];
+}
+
+/**
+ * Stand-in for channels without a usable attribute. The console accepts DUMMY any number of times in
+ * one fixture type (checked with a console-saved type); other attributes appear at most once. A
+ * channel is never skipped — that would shift every later DMX slot of the fixture.
+ */
+const STAND_IN = 'DUMMY';
+
+/** "color_wheel_1 → DUMMY, fixture_control → DUMMY" for notes and reports. */
+export function describeSubstitutions(s: BuiltType['substituted']): string {
+  return s.map((x) => `${x.from} → ${x.to}`).join(', ');
 }
 
 /** Convert a GDTF DMX mode to gma1 channels, mapping GDTF attribute names to gma1 names. */
 export function channelsFromGdtf(mode: GdtfMode): GmaChannel[] {
   return mode.channels
     .filter((c) => c.offsets.length > 0) // virtual channels take no DMX slot
-    .map((c) => ({ attribute: gmaAttributeName(c.attribute), sixteenBit: c.offsets.length >= 2, dmxBreak: c.dmxBreak || 1 }))
+    .map((c) => ({
+      attribute: gmaAttributeName(c.attribute), sixteenBit: c.offsets.length >= 2, dmxBreak: c.dmxBreak || 1, source: c.attribute,
+    }))
     .sort((a, b) => a.dmxBreak - b.dmxBreak);
 }
 
@@ -93,11 +112,12 @@ function channelFunction(attr: string) {
 /**
  * Build a gma1 fixture type from gma1 channels. Channels keep their order within each DMX
  * break; a 16-bit channel adds a fine channel type after its coarse one. Attributes are resolved by
- * name against the show's pretyp pool; unknown ones are reported in `missing` and skipped.
+ * name against the show's pretyp pool; a channel whose attribute is missing or already taken becomes
+ * DUMMY (see `STAND_IN`), so the DMX footprint always matches the source.
  */
 export function buildFixtureType(input: BuildTypeInput): BuiltType {
-  const usedAttributes = new Set<string>();
-  const missing = new Set<string>();
+  const used = new Set<string>();
+  const substituted: { from: string; to: string }[] = [];
   const channelTypes: RawChannelType[] = [];
   const attrNames: string[] = [];
 
@@ -109,19 +129,24 @@ export function buildFixtureType(input: BuildTypeInput): BuiltType {
 
   [...byBreak.keys()].sort((a, b) => a - b).forEach((brk, breakIdx) => {
     byBreak.get(brk)!.forEach((c, chanIdx) => {
-      const idx = input.attributes.get(c.attribute);
-      if (idx === undefined) {
-        missing.add(c.attribute);
-        return;
+      let attribute = c.attribute;
+      if (!input.attributes.has(attribute) || (used.has(attribute) && attribute !== STAND_IN)) {
+        if (!input.attributes.has(STAND_IN)) {
+          throw new Error(`"${input.name}": the show has no ${STAND_IN} attribute for channel ${c.source ?? c.attribute}`);
+        }
+        substituted.push({ from: c.source ?? c.attribute, to: STAND_IN });
+        attribute = STAND_IN;
       }
-      usedAttributes.add(c.attribute);
-      attrNames.push(c.attribute);
+      const idx = input.attributes.get(attribute)!;
+      used.add(attribute);
+      attrNames.push(attribute);
       channelTypes.push({
         status: ZERO_STATUS, empty: false, attribute: idx, profile: -1,
-        block: coarseBlock(breakIdx > 0 && chanIdx === 0, c.sixteenBit), functions: [channelFunction(c.attribute)],
+        block: coarseBlock(breakIdx > 0 && chanIdx === 0, c.sixteenBit), functions: [channelFunction(attribute)],
       });
       if (c.sixteenBit) {
-        channelTypes.push({ status: ZERO_STATUS, empty: false, attribute: idx, profile: -1, block: ctBlock(1 /* FINE */, false), functions: [] });
+        // The console marks a channel type without channel functions as empty.
+        channelTypes.push({ status: ZERO_STATUS, empty: true, attribute: idx, profile: -1, block: ctBlock(1 /* FINE */, false), functions: [] });
       }
     });
   });
@@ -141,5 +166,5 @@ export function buildFixtureType(input: BuildTypeInput): BuiltType {
     shortName: (input.shortName || input.name).slice(0, NAME_MAX),
     block: ftBlock(flags), bodyStyle: null, modelKey: null, dummy: null, presets: [], channelTypes,
   };
-  return { raw, usedAttributes: [...usedAttributes], missing: [...missing] };
+  return { raw, usedAttributes: [...used], substituted };
 }

@@ -298,7 +298,8 @@ function writeType(w: Writer, t: RawFixtureType) {
 export function serializeFixtureTypePool(pool: FixtureTypePool): Bytes {
   const w = new Writer(pool.version);
   w.w.bytes(new Uint8Array([0x41, 0x4d, pool.version & 0xff, (pool.version >> 8) & 0xff]));
-  w.object(TAG_FT_ROOT, pool.rootEmpty, pool.rootStatus, () => {}, () =>
+  // The empty bit is only valid while the pool has no types (a filled template pool must drop it).
+  w.object(TAG_FT_ROOT, pool.rootEmpty && pool.types.length === 0, pool.rootStatus, () => {}, () =>
     w.collection(pool.types, (t) => writeType(w, t)));
   return w.w.result();
 }

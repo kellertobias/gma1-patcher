@@ -16,6 +16,11 @@ Tar conventions (console-written): first entry `.` (dir, mode 40777), files mode
 no user names, archive zero-padded to a multiple of 10240 bytes. gzip header: no name, mtime 0,
 XFL 0, OS 0x0B. Some factory shows were packed with `./`-prefixed names.
 
+A v6.801 desk save differs slightly: every name `./`-prefixed (first entry `./`), files mode
+100777, real mtimes, gzip with a file name and OS Unix. Directories (`./`, `./DEFAULT.USER/`) are
+written as mode ` 40777 ` with typeflag `0`, never `5`. Every header carries a valid checksum
+(`%6o\0 `) — a single header with a blank checksum makes the desk refuse the show with "error".
+
 ### `.sho` header — verified
 
 | offset | type | meaning |
@@ -48,6 +53,18 @@ children (COLLECTBASE, when stream has_endpos):
 ```
 
 Collections (layers, pools) additionally close with their own `size` after their last child.
+
+**Empty bit** (PICID bit 31) — checked against a v6.801 desk save: it is never set on an object
+that has children. An empty pool root is written with it set (`agenda`: tag 0x8057, end_pos 24,
+count 0, 28 bytes), a filled one without (`showrow` 0x0029, `fixturetypes` 0x0019, `world` 0x002F).
+Channel types (0x15) without channel functions carry it, channels (0x23) always. A filled pool
+that still has the bit (e.g. a filled empty-template pool) makes the desk reject the show ("no valid
+show found"). An empty root must also carry the pool's own class tag — root classes seen on the desk:
+agenda 0x57, bmpeffect 0x7E, engines 0x69, executor 0x43, fadepath 0xA1, forms 0x65, group 0x6D,
+layout 0x8E, macros 0x53, master 0x49, matrix 0x33, ncuelist 0x3F, pages 0x47, preset0–9 0x37,
+profile 0x1D, remote 0x4D, timecode 0x59, world 0x2F; user files chatmsg 0x09, tools 0x81,
+userpresets 0x72, userset 0x88, viewpics 0x5D, views 0x61. Some of these roots carry a payload before
+their collection (executor, pages, remote, timecode), so a bare empty root for them is still a guess.
 Primitive encodings (gmaLib): `int` = 4 bytes; `STRING` = i32 length (−1 = null) + bytes;
 `FIXSTRING<n>` = u32 length + bytes; `MEMBLOCK2` = u32 size + raw struct bytes;
 `ARRAY_ANZ<int,4>` = u32 count + MEMBLOCK2(count × 4).
@@ -142,8 +159,12 @@ features, ~112 attributes (the standard set). Read from the loaded show at run t
 - **New fixture types**: append a 0x17 object built from a GDTF mode to the `fixturetypes` pool
   (`src/lib/gma1/buildType.ts`). One coarse channel type per GDTF channel plus a fine one per extra
   offset, linked by attribute name.
-- **Empty show**: assembled from our encoders in `src/lib/gma1/blank/` — regenerated `pretyp`, empty
-  content pools, factory-default device/config records. Not yet verified on hardware.
+- **Empty show**: a console-saved empty show (v6.801, `public/blank/blank.*`) with the other users'
+  `.USER` folders and their entries in `data.txt` (a text dump the console writes with every save)
+  removed. A synthesized empty show (28-byte stub pools) crashed the console with "Wrong Stream
+  Position": the console's empty pools are full size — preset0–9, group, ncuelist, engines 24012 bytes
+  (999 slots), forms/macros 20016, world 20036, pages 13088, timecode 50064, remote 24076, bmpeffect
+  379656. A patch (showrow + fixturetypes) written onto the console's own empty show loads.
 
 ## 6. Open points
 

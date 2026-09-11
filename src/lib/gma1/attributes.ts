@@ -52,21 +52,37 @@ export const GMA_ATTRIBUTE: Record<string, AttributeInfo> = {
   CONTROL: attr('CONTROL', 'CONTROL', 'NONE', 'Ctrl'),
 };
 
-/** GDTF attribute name (or common alias) -> gma1 attribute name. */
+/**
+ * GDTF attribute name (or common alias) -> gma1 attribute name. Looked up case- and
+ * separator-insensitively, so "color_wheel_1" matches "ColorWheel1". Only mappings that mean the
+ * same thing on the console belong here; everything else becomes a control channel (buildType).
+ */
 export const GDTF_TO_GMA: Record<string, string> = {
   Pan: 'PAN', Tilt: 'TILT', Dimmer: 'DIM', Shutter1: 'STROBE', Strobe: 'STROBE',
   Zoom: 'ZOOM', Focus1: 'FOCUS', Focus: 'FOCUS', Iris: 'IRIS', Frost1: 'FROST', Frost: 'FROST',
-  Prism1: 'PRISMA1', ColorAdd_R: 'RED', ColorAdd_G: 'GREEN', ColorAdd_B: 'BLUE', ColorAdd_W: 'WHITE',
+  Prism1: 'PRISMA1', Prism1Pos: 'PRISMA1 POS', Prism1PosRotate: 'PRISMA1 ROT',
+  Prism2: 'PRISMA2', Prism2Pos: 'PRISMA2 POS', Prism2PosRotate: 'PRISMA2 ROT',
+  ColorAdd_R: 'RED', ColorAdd_G: 'GREEN', ColorAdd_B: 'BLUE',
+  // Extra LED emitters, as patched on the console: white on CM4, amber on AMBER, UV on the first and
+  // lime on the second colour wheel.
+  ColorAdd_W: 'COLORMIX4', White: 'COLORMIX4', ColorAdd_A: 'AMBER', ColorAdd_RY: 'AMBER', Amber: 'AMBER',
+  ColorAdd_UV: 'COLOR1', UV: 'COLOR1', ColorAdd_GY: 'COLOR2', ColorAdd_L: 'COLOR2', Lime: 'COLOR2',
   ColorRGB_Red: 'RED', ColorRGB_Green: 'GREEN', ColorRGB_Blue: 'BLUE',
   ColorSub_C: 'COLORMIX1', ColorSub_M: 'COLORMIX2', ColorSub_Y: 'COLORMIX3',
-  CTO: 'COLOR1 CORR', CTC: 'COLOR1 CORR', Color1: 'COLOR1', Color2: 'COLOR1',
-  Gobo1: 'GOBO1', Gobo1Pos: 'GOBO1 ROT', Gobo1PosRotate: 'GOBO1 ROT', Gobo1WheelSpin: 'GOBO1 ROT',
-  Gobo2: 'GOBO2', Gobo2Pos: 'GOBO2 ROT',
+  CTO: 'COLOR1 CORR', CTC: 'COLOR1 CORR', CTB: 'COLOR1 CORR',
+  Color1: 'COLOR1', ColorWheel1: 'COLOR1', ColorWheel: 'COLOR1', Color1WheelSpin: 'COLOR1 ROT',
+  Color2: 'COLOR2', ColorWheel2: 'COLOR2', Color3: 'COLOR3', ColorWheel3: 'COLOR3',
+  Gobo1: 'GOBO1', Gobo1Pos: 'GOBO1 POS', Gobo1PosRotate: 'GOBO1 ROT', Gobo1WheelSpin: 'GOBO1 WHEEL ROT',
+  Gobo2: 'GOBO2', Gobo2Pos: 'GOBO2 POS', Gobo2PosRotate: 'GOBO2 ROT', Gobo2WheelSpin: 'GOBO2 WHEEL ROT',
 };
+
+const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+const GDTF_TO_GMA_NORMALIZED = new Map(Object.entries(GDTF_TO_GMA).map(([k, v]) => [normalize(k), v]));
 
 /** Map a GDTF attribute to a gma1 attribute name (falls back to a spaced upper-case form). */
 export function gmaAttributeName(gdtf: string): string {
-  return GDTF_TO_GMA[gdtf] ?? gdtf.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toUpperCase();
+  return GDTF_TO_GMA[gdtf] ?? GDTF_TO_GMA_NORMALIZED.get(normalize(gdtf))
+    ?? gdtf.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toUpperCase();
 }
 
 /** gma1 attribute name -> a canonical GDTF attribute name (for MVR/GDTF export). */

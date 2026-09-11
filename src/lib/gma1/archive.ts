@@ -48,6 +48,11 @@ function checksum(h: Bytes): number {
   return sum;
 }
 
+function hasValidChecksum(h: Bytes): boolean {
+  const stored = decodeLatin1(field(h, 148, 8)).replace(/[\0 ]/g, '');
+  return stored !== '' && parseInt(stored, 8) === checksum(h);
+}
+
 function withSize(header: Bytes, size: number): Bytes {
   const h = header.slice();
   const digits = size.toString(8);
@@ -61,7 +66,10 @@ export function writeTar(entries: TarEntry[]): Bytes {
   const parts: Bytes[] = [];
   let total = 0;
   for (const e of entries) {
-    const header = parseOctal(field(e.header, 124, 12)) === e.data.length ? e.header : withSize(e.header, e.data.length);
+    // Headers are kept byte for byte unless the size changed or the checksum is broken — the console
+    // rejects the whole archive on a single bad header checksum.
+    const keep = parseOctal(field(e.header, 124, 12)) === e.data.length && hasValidChecksum(e.header);
+    const header = keep ? e.header : withSize(e.header, e.data.length);
     const padded = new Uint8Array(Math.ceil(e.data.length / BLOCK) * BLOCK);
     padded.set(e.data);
     parts.push(header, padded);

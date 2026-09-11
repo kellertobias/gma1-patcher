@@ -2,7 +2,7 @@ import {
   type FixtureModel, type ShowDoc, addFixtureType, addFixtures, addLayer, appendableLayers, canCreate,
   nextFreeId, updateFixture,
 } from '../gma1/doc';
-import { buildFixtureType, channelsFromGdtf } from '../gma1/buildType';
+import { type BuiltType, buildFixtureType, channelsFromGdtf, describeSubstitutions } from '../gma1/buildType';
 import type { FixtureType } from '../gma1/types';
 import { NAME_MAX } from '../gma1/records';
 import type { GdtfMode, GdtfType } from './gdtf';
@@ -92,7 +92,7 @@ export function applyMvr(doc: ShowDoc, groups: MvrTypeGroup[], mapping: Record<s
       next = made.doc;
       choice = made.index;
       report.notes.push(`Created fixture type "${next.show.types[choice].name}" (${next.show.types[choice].breaks.join('/')} slots)` +
-        (made.missing.length ? ` — no attribute for: ${made.missing.join(', ')}` : ''));
+        (made.substituted.length ? ` — stand-ins: ${describeSubstitutions(made.substituted)}` : ''));
     }
     const typeIndex = choice;
     if (typeIndex === null || typeIndex === undefined) {
@@ -150,18 +150,23 @@ export function canCreateType(group: MvrTypeGroup): boolean {
 }
 
 function createTypeForGroup(doc: ShowDoc, g: MvrTypeGroup):
-  { doc: ShowDoc; index: number; missing: string[] } | string {
+  { doc: ShowDoc; index: number; substituted: BuiltType['substituted'] } | string {
   if (!g.gdtfMode) return 'GDTF not loaded, cannot create a type';
-  const built = buildFixtureType({
-    name: g.gdtf?.name || g.spec,
-    manufacturer: g.gdtf?.manufacturer || '',
-    shortName: g.gdtf?.shortName || '',
-    channels: channelsFromGdtf(g.gdtfMode),
-    attributes: doc.show.attributes,
-  });
+  let built: BuiltType;
+  try {
+    built = buildFixtureType({
+      name: g.gdtf?.name || g.spec,
+      manufacturer: g.gdtf?.manufacturer || '',
+      shortName: g.gdtf?.shortName || '',
+      channels: channelsFromGdtf(g.gdtfMode),
+      attributes: doc.show.attributes,
+    });
+  } catch (e) {
+    return (e as Error).message;
+  }
   if (!built.raw.channelTypes.length) return 'no usable DMX channels in the GDTF mode';
   const [next, index] = addFixtureType(doc, built.raw);
-  return { doc: next, index, missing: built.missing };
+  return { doc: next, index, substituted: built.substituted };
 }
 
 /** A layer that can take new fixtures and is named `name`; created at the end when needed. */

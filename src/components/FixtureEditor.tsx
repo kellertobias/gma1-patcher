@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { download, readFile } from '@/lib/browser';
 import { encodeLatin1 } from '@/lib/gma1/binary';
-import { type GmaChannel, buildFixtureType, channelsFromGdtf } from '@/lib/gma1/buildType';
+import { type GmaChannel, buildFixtureType, channelsFromGdtf, describeSubstitutions } from '@/lib/gma1/buildType';
 import { type ShowDoc, addFixtureType } from '@/lib/gma1/doc';
 import { buildGma1FixtureText, gma1FixtureFileName, isMover } from '@/lib/gma1/textFixture';
 import { parseGdtf } from '@/lib/mvr/gdtf';
@@ -71,15 +71,22 @@ export function FixtureEditor({ doc, onChange }: { doc: ShowDoc; onChange: (doc:
   function addToShow(d: Draft) {
     setError(null);
     setNote(null);
-    const built = buildFixtureType({ name: d.name, manufacturer: d.manufacturer, shortName: d.shortName, channels: d.channels, attributes: doc.show.attributes });
+    let built: ReturnType<typeof buildFixtureType>;
+    try {
+      built = buildFixtureType({ name: d.name, manufacturer: d.manufacturer, shortName: d.shortName, channels: d.channels, attributes: doc.show.attributes });
+    } catch (e) {
+      setError((e as Error).message);
+      return;
+    }
     if (!built.raw.channelTypes.length) {
-      setError(`"${d.name}": no usable channels${built.missing.length ? ` (not in this show: ${built.missing.join(', ')})` : ''}.`);
+      setError(`"${d.name}": no DMX channels.`);
       return;
     }
     onChange(addFixtureType(doc, built.raw)[0]);
     edit(d.key, {});
     setDrafts((prev) => prev.map((x) => (x.key === d.key ? { ...x, added: true } : x)));
-    setNote(`Added "${d.name}" (${built.raw.channelTypes.length} slots)${built.missing.length ? ` — skipped: ${built.missing.join(', ')}` : ''}. Use it in “Add fixtures”.`);
+    setNote(`Added "${d.name}" (${built.raw.channelTypes.length} slots)` +
+      `${built.substituted.length ? ` — stand-ins: ${describeSubstitutions(built.substituted)}` : ''}. Use it in “Add fixtures”.`);
   }
 
   function downloadText(d: Draft) {

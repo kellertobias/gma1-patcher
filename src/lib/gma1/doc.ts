@@ -2,7 +2,7 @@ import { type Bytes, FormatError, concat, equalBytes, u32, view } from './binary
 import { gzipLikeConsole, writeTar } from './archive';
 import { serializeFixtureTypePool } from './fixtureTypes';
 import type { RawFixtureType } from './fixtureTypes';
-import { type LoadedShow, withFixtureTypePool } from './show';
+import { type LoadedShow, parseSho, renameSho, showFileName, withFixtureTypePool } from './show';
 import { type PicNode, parseMemberStrict, serializeMember } from './tree';
 import {
   TAG_CHANNEL, TAG_FIXTURE, TAG_LAYER, type FixtureRecord, channelOldIndex, decodeFixture, decodeLayer,
@@ -270,6 +270,8 @@ export interface BuildOptions {
   now?: Date;
   /** Create new fixtures from the fixture type even when a fixture to copy exists (tests). */
   fromType?: boolean;
+  /** Show name to write; made console-safe (see `showFileName`). Defaults to the loaded name. */
+  name?: string;
 }
 
 export class BuildError extends Error {
@@ -314,12 +316,17 @@ export function buildShow(doc: ShowDoc, opts: BuildOptions = {}): BuildResult {
       : { tag: TAG_LAYER, empty: false, head, coll: true, children, tail: EMPTY };
   });
 
-  const showrow = serializeMember({ ...show.showrow, roots: [{ ...show.root, children: layerNodes }] });
+  // The console never sets the empty bit (PICID bit 31) on an object with children, and an empty
+  // template's showrow root carries it — drop it once there are layers.
+  const rootHead = layerNodes.length ? show.root.head.slice() : show.root.head;
+  if (layerNodes.length) rootHead[3] &= 0x7f;
+  const showrow = serializeMember({ ...show.showrow, roots: [{ ...show.root, head: rootHead, children: layerNodes }] });
   parseMemberStrict(showrow, 'generated showrow');
 
-  const sho = show.sho.slice();
+  const baseName = showFileName(opts.name ?? show.baseName);
+  const sho = renameSho(show.sho, baseName);
   const dv = view(sho);
-  const o = show.header.countsOffset;
+  const o = parseSho(sho).countsOffset;
   const [seconds, days] = dateFields(opts.now ?? new Date());
   dv.setUint32(o, channels, true);
   dv.setUint32(o + 4, fixtureIndex, true);
@@ -336,5 +343,5 @@ export function buildShow(doc: ShowDoc, opts: BuildOptions = {}): BuildResult {
     if (e.name === 'info' && infoMirrorsSho) return { ...e, data: sho };
     return e;
   });
-  return { baseName: show.baseName, sho, tgz: gzipLikeConsole(writeTar(entries)), fixtures: fixtureIndex, channels };
+  return { baseName, sho, tgz: gzipLikeConsole(writeTar(entries)), fixtures: fixtureIndex, channels };
 }

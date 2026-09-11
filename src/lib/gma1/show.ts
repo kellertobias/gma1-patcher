@@ -37,6 +37,28 @@ export function parseSho(sho: Bytes): ShoHeader {
   return { version, title: strings[0], fileName: strings[1], user: strings[2], countsOffset };
 }
 
+/** Longest show name the console accepts: 5 characters + the 3-character `.sho` extension. */
+export const MAX_SHOW_NAME = 5;
+
+/** Console-safe show file name: letters and digits only, at most 5 characters, lower case. */
+export function showFileName(name: string): string {
+  return name.replace(/[^A-Za-z0-9]/g, '').slice(0, MAX_SHOW_NAME).toLowerCase() || 'show';
+}
+
+/** Copy of a .sho header with the title and file name set for show `name` (already console-safe). */
+export function renameSho(sho: Bytes, name: string): Bytes {
+  const { user, countsOffset } = parseSho(sho);
+  const w = new ByteWriter();
+  w.bytes(sho.subarray(0, 4));
+  for (const s of [name.toUpperCase(), `${name}.sho`, user]) {
+    const b = encodeLatin1(s);
+    w.u32(b.length);
+    w.bytes(b);
+  }
+  w.bytes(sho.subarray(countsOffset - 16));
+  return w.result();
+}
+
 export interface LoadedShow {
   /** File name without extension; the output keeps it (the .sho refers to it). */
   baseName: string;

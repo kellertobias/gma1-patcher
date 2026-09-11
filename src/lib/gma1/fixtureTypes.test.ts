@@ -57,7 +57,7 @@ describe.skipIf(!has('act training'))('fixture type pool', () => {
       ],
     };
     const built = buildFixtureType({ name: 'Test Mover', manufacturer: 'GDTF', shortName: 'TM', channels: channelsFromGdtf(mode), attributes: attrs });
-    expect(built.missing).toEqual([]);
+    expect(built.substituted).toEqual([]);
 
     const [doc0, typeIndex] = addFixtureType(docFromShow(show), built.raw);
     let doc = doc0;
