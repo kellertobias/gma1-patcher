@@ -37,7 +37,10 @@ export const GMA_ATTRIBUTE: Record<string, AttributeInfo> = {
   COLORMIX1: attr('COLORMIX', 'COLOR', 'COLOR_MIX', 'CM1'),
   COLORMIX2: attr('COLORMIX', 'COLOR', 'COLOR_MIX', 'CM2'),
   COLORMIX3: attr('COLORMIX', 'COLOR', 'COLOR_MIX', 'CM3'),
+  COLORMIX4: attr('COLORMIX', 'COLOR', 'COLOR_MIX', 'CM4'),
   'COLOR1': attr('COLOR1', 'COLOR', 'COLOR', 'C1'),
+  'COLOR2': attr('COLOR2', 'COLOR', 'COLOR', 'C2'),
+  'COLOR3': attr('COLOR3', 'COLOR', 'COLOR', 'C3'),
   'COLOR1 CORR': attr('COLOR1', 'COLOR', 'COLOR', 'C1 Corr'),
   GOBO1: attr('GOBO1', 'GOBO', 'GOBO', 'G1'),
   'GOBO1 ROT': attr('GOBO1', 'GOBO', 'GOBO_ROTATE', 'G1 Rot'),
@@ -62,12 +65,13 @@ export const GDTF_TO_GMA: Record<string, string> = {
   Zoom: 'ZOOM', Focus1: 'FOCUS', Focus: 'FOCUS', Iris: 'IRIS', Frost1: 'FROST', Frost: 'FROST',
   Prism1: 'PRISMA1', Prism1Pos: 'PRISMA1 POS', Prism1PosRotate: 'PRISMA1 ROT',
   Prism2: 'PRISMA2', Prism2Pos: 'PRISMA2 POS', Prism2PosRotate: 'PRISMA2 ROT',
-  ColorAdd_R: 'RED', ColorAdd_G: 'GREEN', ColorAdd_B: 'BLUE',
-  // Extra LED emitters, as patched on the console: white on CM4, amber on AMBER, UV on the first and
-  // lime on the second colour wheel.
-  ColorAdd_W: 'COLORMIX4', White: 'COLORMIX4', ColorAdd_A: 'AMBER', ColorAdd_RY: 'AMBER', Amber: 'AMBER',
-  ColorAdd_UV: 'COLOR1', UV: 'COLOR1', ColorAdd_GY: 'COLOR2', ColorAdd_L: 'COLOR2', Lime: 'COLOR2',
-  ColorRGB_Red: 'RED', ColorRGB_Green: 'GREEN', ColorRGB_Blue: 'BLUE',
+  // LED emitters as patched on the console (its own RGB types use the colour-mix attributes):
+  // R/G/B on CM1–CM3, white on CM4.
+  ColorAdd_R: 'COLORMIX1', ColorAdd_G: 'COLORMIX2', ColorAdd_B: 'COLORMIX3',
+  ColorRGB_Red: 'COLORMIX1', ColorRGB_Green: 'COLORMIX2', ColorRGB_Blue: 'COLORMIX3',
+  ColorAdd_W: 'COLORMIX4', White: 'COLORMIX4',
+  // Further emitters (amber, UV, lime …) are not mapped here: the type builder puts them on the
+  // free colour wheels in the order they appear in the fixture (see buildType).
   ColorSub_C: 'COLORMIX1', ColorSub_M: 'COLORMIX2', ColorSub_Y: 'COLORMIX3',
   CTO: 'COLOR1 CORR', CTC: 'COLOR1 CORR', CTB: 'COLOR1 CORR',
   Color1: 'COLOR1', ColorWheel1: 'COLOR1', ColorWheel: 'COLOR1', Color1WheelSpin: 'COLOR1 ROT',

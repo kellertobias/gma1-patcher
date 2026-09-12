@@ -91,7 +91,7 @@ Fixture record:
 | **patch** | ARRAY_ANZ<int,4>: one absolute address per DMX break, **−1 = unpatched** |
 | 3D data | DATABLOCK, DATABLOCK (version > 0x170C) |
 | video ids | STRING, STRING (version > 0x12B5) |
-| children | channels (one per coarse/logical channel) |
+| children | channels: one per coarse **or virtual** channel type, none for fine ones (console-checked: LED PAR56 6 channels for 5 slots + virtual dimmer, A7 14 for 16 channel types) |
 
 **Address** = `(line − 1) × 512 + (slot − 1)` (0-based, absolute). 64 lines → < 0x8000.
 
@@ -115,7 +115,12 @@ channel set.
   body/light vectors), body-style/model/dummy (STRING), preset collection, channel-type collection.
 - **Channel type 0x15**: i32 attribute index (into `pretyp`), i32 DMX-profile index (−1), MEMBLOCK2
   0x1C = default, highlight, stage, MIB-fade, flags (bits 0–3 `chantyp` 0 coarse/1 fine/2 virtual,
-  bit 4 `dmx_break_start`, bit 6 invert, bit 9 `is_16bit`), mode index, effect time (float).
+  bit 4 `dmx_break_start`, bit 6 invert, bit 8 follows the virtual dimmer, bit 9 `is_16bit`,
+  bit 11 colour channel), mode index, effect time (float).
+  A **virtual dimmer** is a `DIM` channel type of kind 2 (no DMX slot, so it does not count towards
+  the footprint), default 0, highlight full; the colour channels of the same type carry bit 8. Seen
+  on the console's own LED PAR56 (the only demo type without a dimmer channel), whose CM1–CM3 are
+  `0x940` = invert + vdim + colour, against `0x840` on types that have a real dimmer.
 - **Channel function 0xA3**: name, MEMBLOCK2 0x2C (DMX from/to and mode from/to as 16-bit, phys
   from/to floats, valid flag, visualizer-effect id), path (STRING), channel-set collection.
 - **Channel set 0x13**: name, MEMBLOCK2 0x14 (from/to 16-bit, flags, RGB, float), `csdata` (STRING),

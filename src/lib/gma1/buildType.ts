@@ -13,6 +13,8 @@ export interface GmaChannel {
   dmxBreak: number;
   /** Where the channel came from (the GDTF attribute), for reports and stand-in choice. */
   source?: string;
+  /** Default DMX value (16-bit) for the channel; used for shutters ("open" from the GDTF). */
+  defaultValue?: number;
 }
 
 // Value blocks are constructed field by field from the documented layouts (docs/FORMAT.md).
@@ -37,10 +39,8 @@ function ftBlock(flags: number): Bytes {
   ]);
 }
 
-function ctBlock(flags: number, coarse: boolean): Bytes {
-  return coarse
-    ? block(28, [[0, 'i', 0], [4, 'i', FULL], [8, 'i', -1], [12, 'i', -1], [16, 'i', flags], [20, 'i', -1], [24, 'f', 0]])
-    : block(28, [[0, 'i', 0], [4, 'i', -1], [8, 'i', -1], [12, 'i', -1], [16, 'i', flags], [20, 'i', -1], [24, 'f', -1]]);
+function ctBlock(flags: number): Bytes {
+  return block(28, [[0, 'i', 0], [4, 'i', -1], [8, 'i', -1], [12, 'i', -1], [16, 'i', flags], [20, 'i', -1], [24, 'f', -1]]);
 }
 
 function cfBlock(effect: number): Bytes {
@@ -54,8 +54,35 @@ const FT_HAS_PANTILT = 1 << 6;
 const FT_IS_LED = 1 << 8;
 const FT_HAS_RGB = 1 << 10;
 
+const CT_FINE = 1;
+/** Channel kind 2: virtual — the console gives it no DMX slot (used for the virtual dimmer). */
+const CT_VIRTUAL = 2;
 const CT_BREAK_START = 1 << 4;
+const CT_INVERT = 1 << 6;
+/** "Follows the virtual dimmer", as on the console's own LED PAR56 colour channels. */
+const CT_VDIM = 1 << 8;
 const CT_16BIT = 1 << 9;
+const CT_COLOR = 1 << 11;
+
+/** Attributes the console flags as colour channels (bit 11) when it creates a channel type. */
+const COLOR_ATTRS = new Set(['RED', 'GREEN', 'BLUE', 'COLORMIX1', 'COLORMIX2', 'COLORMIX3', 'COLOR1', 'COLOR2', 'COLOR3']);
+/** Colour-mix attribute -> the colour component its channel function drives. */
+const CM_INDEX: Record<string, number> = { COLORMIX1: 0, COLORMIX2: 1, COLORMIX3: 2, COLORMIX4: 3 };
+/**
+ * GDTF attributes of LED emitters. On the colour-mix attributes (CMY-style: 0 % = open) they run
+ * inverted, as in the console's own RGB types (LED PAR56, A7: CM1–CM3 with the invert flag).
+ */
+const ADDITIVE = /^(ColorAdd_|ColorRGB_|White$)/i;
+/** The console's colour-mix attribute for the primary emitters. */
+const EMITTER_CM: Record<string, string> = {
+  coloraddr: 'COLORMIX1', colorrgbred: 'COLORMIX1',
+  coloraddg: 'COLORMIX2', colorrgbgreen: 'COLORMIX2',
+  coloraddb: 'COLORMIX3', colorrgbblue: 'COLORMIX3',
+  coloraddw: 'COLORMIX4', white: 'COLORMIX4',
+};
+/** Further emitters (amber, UV, lime …) take the colour wheels, in the order they appear. */
+const EXTRA_EMITTERS = ['COLOR1', 'COLOR2', 'COLOR3'];
+const key = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 export interface BuildTypeInput {
   name: string;
@@ -93,31 +120,60 @@ export function describeSubstitutions(s: BuiltType['substituted']): string {
 export function channelsFromGdtf(mode: GdtfMode): GmaChannel[] {
   return mode.channels
     .filter((c) => c.offsets.length > 0) // virtual channels take no DMX slot
-    .map((c) => ({
-      attribute: gmaAttributeName(c.attribute), sixteenBit: c.offsets.length >= 2, dmxBreak: c.dmxBreak || 1, source: c.attribute,
-    }))
+    .map((c) => {
+      const attribute = gmaAttributeName(c.attribute);
+      return {
+        attribute, sixteenBit: c.offsets.length >= 2, dmxBreak: c.dmxBreak || 1, source: c.attribute,
+        // A shutter starts open when the GDTF names an open range.
+        defaultValue: attribute === 'STROBE' ? c.open : undefined,
+      };
+    })
     .sort((a, b) => a.dmxBreak - b.dmxBreak);
 }
 
-function coarseBlock(breakStart: boolean, sixteenBit: boolean): Bytes {
-  const b = ctBlock((breakStart ? CT_BREAK_START : 0) | (sixteenBit ? CT_16BIT : 0), true);
-  view(b).setInt32(4, pctToDmx(100), true); // highlight full
+function coarseBlock(breakStart: boolean, sixteenBit: boolean, attribute: string, inverted: boolean, def?: number): Bytes {
+  const flags = (breakStart ? CT_BREAK_START : 0) | (sixteenBit ? CT_16BIT : 0)
+    | (COLOR_ATTRS.has(attribute) ? CT_COLOR : 0) | (inverted ? CT_INVERT : 0);
+  const b = ctBlock(flags);
+  const v = view(b);
+  // Highlight as in the console's own types: dimmer full, colour open (0), everything else none (-1).
+  const colour = COLOR_ATTRS.has(attribute) || attribute in CM_INDEX;
+  v.setInt32(4, attribute === 'DIM' ? pctToDmx(100) : colour ? 0 : -1, true);
+  if (def !== undefined) v.setInt32(0, def, true);
   return b;
 }
 
+/**
+ * Virtual dimmer, as on the console's own LED PAR56: a DIM channel of kind "virtual" (no DMX slot),
+ * closed by default, full on highlight. Added to every fixture without a dimmer channel; the colour
+ * channels then follow it (CT_VDIM).
+ */
+function virtualDimmer(attributeIndex: number): RawChannelType {
+  const b = ctBlock(CT_VIRTUAL);
+  view(b).setInt32(4, pctToDmx(100), true);
+  return { status: ZERO_STATUS, empty: false, attribute: attributeIndex, profile: -1, block: b, functions: [channelFunction('DIM')] };
+}
+
 function channelFunction(attr: string) {
-  return { status: ZERO_STATUS, empty: false, name: attr.slice(0, NAME_MAX), block: cfBlock(GMA_ATTRIBUTE[attr]?.effId ?? 0), path: null, sets: [] };
+  const b = cfBlock(GMA_ATTRIBUTE[attr]?.effId ?? 0);
+  // Physical range 0..1 for dimmer and colour mix, as in the console's own types.
+  if (attr === 'DIM' || attr in CM_INDEX) view(b).setFloat32(24, 1, true);
+  if (attr in CM_INDEX) view(b).setInt32(40, CM_INDEX[attr], true); // colour component 0–3
+  return { status: ZERO_STATUS, empty: false, name: attr.slice(0, NAME_MAX), block: b, path: null, sets: [] };
 }
 
 /**
  * Build a gma1 fixture type from gma1 channels. Channels keep their order within each DMX
  * break; a 16-bit channel adds a fine channel type after its coarse one. Attributes are resolved by
  * name against the show's pretyp pool; a channel whose attribute is missing or already taken becomes
- * DUMMY (see `STAND_IN`), so the DMX footprint always matches the source.
+ * DUMMY (see `STAND_IN`), so the DMX footprint always matches the source. LED emitters go on the
+ * colour-mix attributes (inverted), and a fixture without a dimmer channel gets a virtual one that
+ * its colour channels follow.
  */
 export function buildFixtureType(input: BuildTypeInput): BuiltType {
   const used = new Set<string>();
   const substituted: { from: string; to: string }[] = [];
+  const emitters = new Set<string>(); // colour-mix attributes carrying an LED emitter (inverted)
   const channelTypes: RawChannelType[] = [];
   const attrNames: string[] = [];
 
@@ -127,35 +183,64 @@ export function buildFixtureType(input: BuildTypeInput): BuiltType {
     (byBreak.get(brk) ?? byBreak.set(brk, []).get(brk)!).push(c);
   }
 
+  const emitterChannels: number[] = []; // channel types carrying an LED emitter
   [...byBreak.keys()].sort((a, b) => a - b).forEach((brk, breakIdx) => {
     byBreak.get(brk)!.forEach((c, chanIdx) => {
+      const source = c.source ?? c.attribute;
+      const emitter = ADDITIVE.test(source);
       let attribute = c.attribute;
+      if (emitter) {
+        // R/G/B/W on the colour-mix attributes, further emitters on the colour wheels in order.
+        const primary = EMITTER_CM[key(source)];
+        const free = primary && !used.has(primary)
+          ? primary
+          : EXTRA_EMITTERS.find((a) => input.attributes.has(a) && !used.has(a));
+        if (free) attribute = free;
+      }
       if (!input.attributes.has(attribute) || (used.has(attribute) && attribute !== STAND_IN)) {
         if (!input.attributes.has(STAND_IN)) {
-          throw new Error(`"${input.name}": the show has no ${STAND_IN} attribute for channel ${c.source ?? c.attribute}`);
+          throw new Error(`"${input.name}": the show has no ${STAND_IN} attribute for channel ${source}`);
         }
-        substituted.push({ from: c.source ?? c.attribute, to: STAND_IN });
         attribute = STAND_IN;
       }
+      if (attribute !== c.attribute) substituted.push({ from: source, to: attribute });
       const idx = input.attributes.get(attribute)!;
+      // Emitters run inverted on the console's colour attributes (0 % = open), as in its own types.
+      const inverted = emitter && (attribute in CM_INDEX || COLOR_ATTRS.has(attribute));
+      if (inverted) emitters.add(attribute);
       used.add(attribute);
       attrNames.push(attribute);
+      if (emitter) emitterChannels.push(channelTypes.length);
       channelTypes.push({
         status: ZERO_STATUS, empty: false, attribute: idx, profile: -1,
-        block: coarseBlock(breakIdx > 0 && chanIdx === 0, c.sixteenBit), functions: [channelFunction(attribute)],
+        block: coarseBlock(breakIdx > 0 && chanIdx === 0, c.sixteenBit, attribute, inverted, c.defaultValue),
+        functions: [channelFunction(attribute)],
       });
       if (c.sixteenBit) {
         // The console marks a channel type without channel functions as empty.
-        channelTypes.push({ status: ZERO_STATUS, empty: true, attribute: idx, profile: -1, block: ctBlock(1 /* FINE */, false), functions: [] });
+        channelTypes.push({ status: ZERO_STATUS, empty: true, attribute: idx, profile: -1, block: ctBlock(CT_FINE), functions: [] });
       }
     });
   });
 
   const has = (a: string) => attrNames.includes(a);
+
+  // A fixture without a dimmer channel gets a virtual one, and its emitters follow it.
+  const dimIndex = input.attributes.get('DIM');
+  if (!has('DIM') && dimIndex !== undefined) {
+    for (const i of emitterChannels) {
+      const v = view(channelTypes[i].block);
+      v.setInt32(16, v.getInt32(16, true) | CT_VDIM, true);
+    }
+    channelTypes.push(virtualDimmer(dimIndex));
+    attrNames.push('DIM');
+    used.add('DIM');
+  }
   let flags = 0;
   if (has('PAN') && has('TILT')) flags |= FT_HAS_PANTILT | FT_HEADMOVER;
   if (has('DIM')) flags |= FT_HAS_DIMMER;
-  if (has('RED') && has('GREEN') && has('BLUE')) flags |= FT_HAS_RGB | FT_IS_LED;
+  const rgbOnCm = ['COLORMIX1', 'COLORMIX2', 'COLORMIX3'].every((a) => emitters.has(a));
+  if ((has('RED') && has('GREEN') && has('BLUE')) || rgbOnCm) flags |= FT_HAS_RGB | FT_IS_LED;
   if (!has('PAN') && !has('TILT')) flags |= FT_CONVENTIONAL;
 
   const raw: RawFixtureType = {

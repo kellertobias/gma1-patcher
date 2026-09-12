@@ -56,8 +56,9 @@ export function parseFixtureTypes(ft: Bytes): FixtureType[] {
       };
       t.channelTypes.push(ct);
       if (ct.breakStart && t.breaks[t.breaks.length - 1]) t.breaks.push(0);
+      // Coarse and fine take a DMX slot; virtual (2, e.g. a virtual dimmer) is understood but takes none.
       if (ct.kind === 0 || ct.kind === 1) t.breaks[t.breaks.length - 1]++;
-      else t.unknown++;
+      else if (ct.kind !== 2) t.unknown++;
     }
     return t;
   });

@@ -3,6 +3,9 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ShowFiles } from '../../browser';
 import { gunzip, readTar, writeTar } from '../archive';
+import { typeChannels } from '../../mvr/buildGdtf';
+import { parseFixtureTypes } from '../types';
+import { serializeFixtureTypePool } from '../fixtureTypes';
 import { addFixtureType, addFixtures, addLayer, buildShow, docFromShow } from '../doc';
 import { loadShow, parseSho, showFileName } from '../show';
 import { buildFixtureType, channelsFromGdtf } from '../buildType';
@@ -42,13 +45,78 @@ describe('fixture type from GDTF', () => {
     expect(built.raw.channelTypes.length).toBe(8);
     const nameOf = new Map([...show.attributes].map(([n, i]) => [i, n]));
     expect(built.raw.channelTypes.map((c) => nameOf.get(c.attribute)))
-      .toEqual(['DIM', 'COLORMIX4', 'COLOR1', 'DUMMY', 'DUMMY', 'DUMMY', 'DUMMY', 'PRISMA1 ROT']);
+      .toEqual(['DIM', 'COLORMIX4', 'COLOR1', 'DUMMY', 'DUMMY', 'DUMMY', 'COLOR2', 'PRISMA1 ROT']);
     expect(built.substituted).toEqual([
+      { from: 'ColorAdd_UV', to: 'COLOR1' }, // first free colour wheel
       { from: 'color_wheel_1', to: 'DUMMY' }, // COLOR1 is taken by UV
       { from: 'fixture_control', to: 'DUMMY' },
       { from: 'position_movement', to: 'DUMMY' },
-      { from: 'ColorAdd_A', to: 'DUMMY' }, // no AMBER attribute in the console's vocabulary
+      { from: 'ColorAdd_A', to: 'COLOR2' }, // next free colour wheel
     ]);
+  });
+
+  it('adds a virtual dimmer when the fixture has none, and opens the shutter from the GDTF', () => {
+    const show = loadShow('blank', bundledBlank().sho, bundledBlank().tgz);
+    const mode = {
+      name: 'rgba', breaks: [5],
+      channels: [
+        { attribute: 'ColorAdd_R', dmxBreak: 1, offsets: [1] },
+        { attribute: 'ColorAdd_G', dmxBreak: 1, offsets: [2] },
+        { attribute: 'ColorAdd_B', dmxBreak: 1, offsets: [3] },
+        { attribute: 'ColorAdd_A', dmxBreak: 1, offsets: [4] },
+        { attribute: 'Shutter1', dmxBreak: 1, offsets: [5], open: 16 << 8 },
+      ],
+    };
+    const built = buildFixtureType({ name: 'T', manufacturer: 'X', shortName: 'T', channels: channelsFromGdtf(mode), attributes: show.attributes });
+    const nameOf = new Map([...show.attributes].map(([n, i]) => [i, n]));
+    const rows = built.raw.channelTypes.map((c) => {
+      const v = new DataView(c.block.buffer, c.block.byteOffset, c.block.byteLength);
+      const f = v.getInt32(16, true);
+      return { attr: nameOf.get(c.attribute), kind: f & 0xf, vdim: !!(f & 0x100), invert: !!(f & 0x40), def: v.getInt32(0, true), hi: v.getInt32(4, true) };
+    });
+    expect(rows).toEqual([
+      { attr: 'COLORMIX1', kind: 0, vdim: true, invert: true, def: 0, hi: 0 },
+      { attr: 'COLORMIX2', kind: 0, vdim: true, invert: true, def: 0, hi: 0 },
+      { attr: 'COLORMIX3', kind: 0, vdim: true, invert: true, def: 0, hi: 0 },
+      { attr: 'COLOR1', kind: 0, vdim: true, invert: true, def: 0, hi: 0 }, // amber on the first colour wheel
+      { attr: 'STROBE', kind: 0, vdim: false, invert: false, def: 16 << 8, hi: -1 }, // open, from the GDTF
+      { attr: 'DIM', kind: 2, vdim: false, invert: false, def: 0, hi: 65535 }, // virtual dimmer, last
+    ]);
+    // The virtual dimmer takes no DMX slot, and the type counts as "has dimmer".
+    expect(parseFixtureTypes(serializeFixtureTypePool({ ...show.fixtureTypePool, types: [built.raw] }))[0].breaks).toEqual([5]);
+    expect(new DataView(built.raw.block.buffer, built.raw.block.byteOffset, 84).getInt32(12, true) & (1 << 4)).toBeTruthy();
+  });
+
+  it('puts RGB(W) emitters on CM1–CM4, inverted, as the console does for its own RGB types', () => {
+    const show = loadShow('blank', bundledBlank().sho, bundledBlank().tgz);
+    const ch = (attribute: string, offsets: number[]) => ({ attribute, dmxBreak: 1, offsets });
+    const mode = {
+      name: 'rgbw', breaks: [7],
+      channels: [ch('Dimmer', [1]), ch('ColorAdd_R', [2]), ch('ColorAdd_G', [3]), ch('ColorAdd_B', [4]), ch('ColorAdd_W', [5]),
+        ch('Pan', [6]), ch('ColorSub_C', [7])],
+    };
+    const built = buildFixtureType({ name: 'T', manufacturer: 'X', shortName: 'T', channels: channelsFromGdtf(mode), attributes: show.attributes });
+    const nameOf = new Map([...show.attributes].map(([n, i]) => [i, n]));
+    const info = built.raw.channelTypes.map((c) => {
+      const v = new DataView(c.block.buffer, c.block.byteOffset, c.block.byteLength);
+      const f = v.getInt32(16, true);
+      const fn = c.functions[0] && new DataView(c.functions[0].block.buffer, c.functions[0].block.byteOffset, 44);
+      return { attr: nameOf.get(c.attribute), invert: !!(f & 0x40), colour: !!(f & 0x800), highlight: v.getInt32(4, true), component: fn?.getInt32(40, true) };
+    });
+    expect(info).toEqual([
+      { attr: 'DIM', invert: false, colour: false, highlight: 65535, component: 0 },
+      { attr: 'COLORMIX1', invert: true, colour: true, highlight: 0, component: 0 },
+      { attr: 'COLORMIX2', invert: true, colour: true, highlight: 0, component: 1 },
+      { attr: 'COLORMIX3', invert: true, colour: true, highlight: 0, component: 2 },
+      { attr: 'COLORMIX4', invert: true, colour: false, highlight: 0, component: 3 },
+      { attr: 'PAN', invert: false, colour: false, highlight: -1, component: 0 },
+      { attr: 'DUMMY', invert: false, colour: false, highlight: -1, component: 0 }, // CM1 already taken by red
+    ]);
+    const typeFlags = new DataView(built.raw.block.buffer, built.raw.block.byteOffset, 84).getInt32(12, true);
+    expect(typeFlags & (1 << 10)).toBeTruthy(); // RGB
+    // MVR export turns the inverted colour-mix channels back into emitters.
+    expect(typeChannels(built.raw, (i) => nameOf.get(i)!).map((c) => c.attribute).slice(1, 5))
+      .toEqual(['ColorAdd_R', 'ColorAdd_G', 'ColorAdd_B', 'ColorAdd_W']);
   });
 });
 

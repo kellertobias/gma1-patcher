@@ -234,8 +234,13 @@ function channelFromType(ct: ChannelType, typeChannelIndex: number, oldIndex: nu
   return { tag: TAG_CHANNEL, empty: true, head: h, coll: false, children: [], tail: EMPTY };
 }
 
+/**
+ * One channel object per coarse (0) and virtual (2) channel type, as the console writes them — a fine
+ * channel type gets none (checked on its own types: LED PAR56 6 channels for 5 slots + virtual dimmer,
+ * A7 14 channels for 16 channel types).
+ */
 export function channelsFromType(type: FixtureType, nextIndex: () => number): PicNode[] {
-  return type.channelTypes.flatMap((ct, j) => (ct.kind === 0 ? [channelFromType(ct, j, nextIndex())] : []));
+  return type.channelTypes.flatMap((ct, j) => (ct.kind === 0 || ct.kind === 2 ? [channelFromType(ct, j, nextIndex())] : []));
 }
 
 function createFixture(show: LoadedShow, f: FixtureModel, index: number, nextChannel: () => number,
