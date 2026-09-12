@@ -10,6 +10,7 @@ import {
   writeFixtureBlock,
 } from './records';
 import { type Problem, findProblems } from './rules';
+import { GROUP_NAME_MAX, parseGroupPool, serializeGroupPool, withGroups } from './groups';
 import type { ChannelType, FixtureType } from './types';
 
 export interface LayerModel {
@@ -269,6 +270,87 @@ export interface BuildResult {
   tgz: Bytes;
   fixtures: number;
   channels: number;
+  /** Groups generated from the patch (see `GroupPlan`). */
+  groups: number;
+}
+
+/**
+ * Which groups to generate from the patch. Any combination; the console's group pool keeps its
+ * existing groups and the new ones go into the free slots.
+ */
+export interface GroupPlan {
+  /** One group per layer. */
+  layers?: boolean;
+  /** One group per fixture type. */
+  types?: boolean;
+  /** One group per layer and fixture type that actually occur together. */
+  combos?: boolean;
+}
+
+export const NO_GROUPS: GroupPlan = {};
+
+/**
+ * Fit the parts of a group name into the console's name length, giving each part a fair share
+ * ("LED PAR Audience" + "ROOT PAR 6" -> "LED PAR A ROOT PAR"), so combinations stay distinguishable.
+ */
+function groupName(parts: string[]): string {
+  const clean = parts.map((p) => p.trim()).filter(Boolean);
+  const joined = clean.join(' ');
+  if (joined.length <= GROUP_NAME_MAX) return joined;
+  const budget = GROUP_NAME_MAX - (clean.length - 1); // separators
+  const share = Math.floor(budget / clean.length);
+  let spare = budget - clean.reduce((n, p) => n + Math.min(p.length, share), 0);
+  return clean
+    .map((p) => {
+      const take = Math.min(p.length, share + spare);
+      spare -= Math.max(0, take - share);
+      return p.slice(0, take);
+    })
+    .join(' ');
+}
+
+/** What a group is built from: the fixture's layer (by key, so equal names stay apart) and type. */
+export interface GroupFixture {
+  /** Identity of the layer; two layers with the same name are still two layers. */
+  layerKey: string;
+  layer: string;
+  type: string;
+  oldIndex: number;
+}
+
+/** Groups for `plan`, in the order they are written: layers, then types, then combinations. */
+export function plannedGroups(fixtures: GroupFixture[], plan: GroupPlan): { name: string; fixtures: number[] }[] {
+  const out: { name: string; fixtures: number[] }[] = [];
+  const taken = new Set<string>();
+  const unique = (name: string) => {
+    if (!taken.has(name)) return name;
+    for (let i = 2; ; i++) {
+      const suffix = ` ${i}`;
+      const candidate = name.slice(0, GROUP_NAME_MAX - suffix.length) + suffix;
+      if (!taken.has(candidate)) return candidate;
+    }
+  };
+  // Grouped by what the fixtures actually share, not by the (shortened) name: two layers with the
+  // same name, or names that only differ past the name length, still give two groups.
+  const collect = (id: (f: GroupFixture) => string, key: (f: GroupFixture) => string[]) => {
+    const by = new Map<string, { parts: string[]; members: number[] }>();
+    for (const f of fixtures) {
+      const at = id(f);
+      const entry = by.get(at) ?? by.set(at, { parts: key(f), members: [] }).get(at)!;
+      entry.members.push(f.oldIndex);
+    }
+    for (const { parts, members } of by.values()) {
+      const name = groupName(parts);
+      if (!name || !members.length) continue;
+      const final = unique(name);
+      taken.add(final);
+      out.push({ name: final, fixtures: members });
+    }
+  };
+  if (plan.layers) collect((f) => f.layerKey, (f) => [f.layer]);
+  if (plan.types) collect((f) => f.type, (f) => [f.type]);
+  if (plan.combos) collect((f) => `${f.layerKey}\u0000${f.type}`, (f) => [f.layer, f.type]);
+  return out;
 }
 
 export interface BuildOptions {
@@ -277,6 +359,8 @@ export interface BuildOptions {
   fromType?: boolean;
   /** Show name to write; made console-safe (see `showFileName`). Defaults to the loaded name. */
   name?: string;
+  /** Groups to generate from the patch; none by default. */
+  groups?: GroupPlan;
 }
 
 export class BuildError extends Error {
@@ -341,12 +425,34 @@ export function buildShow(doc: ShowDoc, opts: BuildOptions = {}): BuildResult {
   // The fixture-type pool is regenerated from its parsed form; this is byte-identical to the input
   // when no type was added (the codec round-trips) and carries added types otherwise.
   const fixtureTypes = serializeFixtureTypePool(show.fixtureTypePool);
+
+  // Groups are written from the fixtures as they were just built: a group holds fixture old indices.
+  const plan = opts.groups ?? NO_GROUPS;
+  const groupSource = show.entries.find((e) => e.name === 'group')?.data;
+  const groups = plan.layers || plan.types || plan.combos
+    ? plannedGroups(
+        layerNodes.flatMap((ln, i) => ln.children.map((fn) => {
+          const r = decodeFixture(fn.head);
+          return {
+            layerKey: doc.layers[i].key,
+            layer: doc.layers[i].name,
+            type: show.types[r.typeIndex]?.name ?? `Type ${r.typeIndex}`,
+            oldIndex: readFixtureBlock(r.block).oldIndex,
+          };
+        })),
+        plan,
+      )
+    : [];
+  const groupMember = groups.length && groupSource
+    ? serializeGroupPool(withGroups(parseGroupPool(groupSource), groups))
+    : undefined;
   const infoMirrorsSho = show.entries.some((e) => e.name === 'info' && equalBytes(e.data, show.sho));
   const entries = show.entries.map((e) => {
     if (e.name === 'showrow') return { ...e, data: showrow };
     if (e.name === 'fixturetypes') return { ...e, data: fixtureTypes };
+    if (e.name === 'group' && groupMember) return { ...e, data: groupMember };
     if (e.name === 'info' && infoMirrorsSho) return { ...e, data: sho };
     return e;
   });
-  return { baseName, sho, tgz: gzipLikeConsole(writeTar(entries)), fixtures: fixtureIndex, channels };
+  return { baseName, sho, tgz: gzipLikeConsole(writeTar(entries)), fixtures: fixtureIndex, channels, groups: groups.length };
 }

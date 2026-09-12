@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { type ShowFiles, download, downloadShow, saveTemplate } from '@/lib/browser';
-import { BuildError, type ShowDoc, buildShow, docFromShow, isDirty } from '@/lib/gma1/doc';
+import { BuildError, type GroupPlan, type ShowDoc, buildShow, docFromShow, isDirty } from '@/lib/gma1/doc';
 import { buildMvr } from '@/lib/mvr/exportMvr';
 import { findProblems } from '@/lib/gma1/rules';
 import { MAX_SHOW_NAME, loadShow, showFileName } from '@/lib/gma1/show';
@@ -15,6 +15,18 @@ import { Button, Section } from './ui';
 
 const REPO_URL = 'https://github.com/kellertobias/gma1-patcher';
 
+/** What to generate into the show's group pool; the existing groups are kept either way. */
+const GROUP_PLANS: { value: string; label: string; plan: GroupPlan }[] = [
+  { value: 'none', label: 'No groups', plan: {} },
+  { value: 'layers', label: 'Groups per layer', plan: { layers: true } },
+  { value: 'types', label: 'Groups per fixture type', plan: { types: true } },
+  { value: 'layers-types', label: 'Groups per layer + per type', plan: { layers: true, types: true } },
+  { value: 'combos', label: 'Groups per layer × type', plan: { combos: true } },
+  { value: 'layers-combos', label: 'Groups per layer + per layer × type', plan: { layers: true, combos: true } },
+  { value: 'types-combos', label: 'Groups per type + per layer × type', plan: { types: true, combos: true } },
+  { value: 'all', label: 'Groups per layer + per type + per layer × type', plan: { layers: true, types: true, combos: true } },
+];
+
 export default function App() {
   const [doc, setDoc] = useState<ShowDoc | null>(null);
   const [source, setSource] = useState<ShowFiles | null>(null);
@@ -22,6 +34,7 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [asZip, setAsZip] = useState(false);
   const [showName, setShowName] = useState('');
+  const [groupPlan, setGroupPlan] = useState('none');
 
   const problems = useMemo(() => (doc ? findProblems(doc) : []), [doc]);
   const blocking = useMemo(() => (doc ? problems.filter((p) => !doc.baseline.has(p.message)) : []), [doc, problems]);
@@ -50,9 +63,11 @@ export default function App() {
     if (!doc) return;
     setError(null);
     try {
-      const out = buildShow(doc, { name: showName });
+      const plan = GROUP_PLANS.find((p) => p.value === groupPlan)?.plan ?? {};
+      const out = buildShow(doc, { name: showName, groups: plan });
       downloadShow({ baseName: out.baseName, sho: out.sho, tgz: out.tgz }, asZip);
-      setNotice(`Generated “${out.baseName}”: ${out.fixtures} fixtures, ${out.channels} channels. ` +
+      setNotice(`Generated “${out.baseName}”: ${out.fixtures} fixtures, ${out.channels} channels` +
+        `${out.groups ? `, ${out.groups} groups` : ''}. ` +
         'Copy both files into the show folder of the console or onPC and load the show there to check the patch.');
     } catch (e) {
       setError(e instanceof BuildError ? `${e.message}: see the red rows below.` : `Could not write the show: ${(e as Error).message}`);
@@ -106,6 +121,16 @@ export default function App() {
                 />
                 <span className="font-mono">.sho</span>
               </label>
+              <select
+                value={groupPlan}
+                onChange={(e) => setGroupPlan(e.target.value)}
+                title="Generate groups from the patch; groups already in the show are kept"
+                className="rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              >
+                {GROUP_PLANS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
               <label className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
                 <input type="checkbox" checked={asZip} onChange={(e) => setAsZip(e.target.checked)} /> as ZIP
               </label>

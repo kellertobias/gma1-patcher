@@ -80,6 +80,8 @@ export function applyMvr(doc: ShowDoc, groups: MvrTypeGroup[], mapping: Record<s
                          opts: ImportOptions): [ShowDoc, ImportReport] {
   const report: ImportReport = { updated: 0, created: 0, skipped: [], notes: [] };
   let next = doc;
+  /** MVR layer name -> the show layer it goes to, so layers are not split or merged by name length. */
+  const layers = new Map<string, string>();
 
   for (const g of groups) {
     let choice = mapping[g.key];
@@ -125,7 +127,7 @@ export function applyMvr(doc: ShowDoc, groups: MvrTypeGroup[], mapping: Record<s
         report.skipped.push(`"${m.name}": fixtures of "${type.name}" cannot be created`);
         continue;
       }
-      const layerKey = layerFor(next, m.layer || 'MVR');
+      const layerKey = layerFor(next, m.layer || 'MVR', layers);
       next = layerKey[0];
       const fixture: Omit<FixtureModel, 'key' | 'node'> = {
         layerKey: layerKey[1],
@@ -169,10 +171,23 @@ function createTypeForGroup(doc: ShowDoc, g: MvrTypeGroup):
   return { doc: next, index, substituted: built.substituted };
 }
 
-/** A layer that can take new fixtures and is named `name`; created at the end when needed. */
-function layerFor(doc: ShowDoc, name: string): [ShowDoc, string] {
-  const hit = appendableLayers(doc).find((l) => l.name === name);
-  if (hit) return [doc, hit.key];
-  const [next, layer] = addLayer(doc, name.slice(0, NAME_MAX));
+/**
+ * The show layer for an MVR layer, created at the end when needed. Keyed by the full MVR name, while
+ * the layer record only holds a shortened one: fixtures of one MVR layer always end up together
+ * (they used to get one layer each), and two MVR layers whose names differ only past that length
+ * still stay apart.
+ */
+function layerFor(doc: ShowDoc, name: string, layers: Map<string, string>): [ShowDoc, string] {
+  const known = layers.get(name);
+  if (known) return [doc, known];
+  const short = name.slice(0, NAME_MAX);
+  const claimed = new Set(layers.values());
+  const hit = appendableLayers(doc).find((l) => l.name === short && !claimed.has(l.key));
+  if (hit) {
+    layers.set(name, hit.key);
+    return [doc, hit.key];
+  }
+  const [next, layer] = addLayer(doc, short);
+  layers.set(name, layer.key);
   return [next, layer.key];
 }

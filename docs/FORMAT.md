@@ -105,6 +105,22 @@ Root 0x21 (collection of 64 lines). Line 0x8B: name, i32 first and i32 last used
 empty), then one slot object (0x1F, 26 bytes: parked value, parked flag, profile index) for every
 slot in first..last. Slots do not reference fixtures; they only carry parked values and profiles.
 
+### `group` — groups of fixtures (codec: `src/lib/gma1/groups.ts`)
+
+999 fixed slots (the group numbers), then the pool's own order array. Verified by round-tripping a
+console save byte for byte:
+
+```
+root 0x6D  status(8)  [end_pos count=999  slot*999]  [end_pos count=999  i32*999]  size
+slot 0x6B  status(8)  name(FIXSTRING)  [end_pos count  i32*count]  size
+slot 0x806B (bit 31 = no member list)  status(8)  name  size          // unused slot: no name either
+```
+
+A group's members are fixture **old indices** (`id_fixture.oldIndex`), not fixture IDs or channels.
+The console also writes groups without a name and groups without any member list (201 used slots in
+the checked show: 108 named with members, 91 unnamed with members, 2 named without a list). Sizes
+exclude the trailer itself, as everywhere else.
+
 ### `fixturetypes` — embedded fixture types (full codec: `src/lib/gma1/fixtureTypes.ts`)
 
 Object tree: 0x19 root → 0x17 fixture type → 0x15 channel type → 0xA3 channel function → 0x13

@@ -10,12 +10,16 @@ export, show files are read and written in the browser only.
 - Edit fixture IDs, channel IDs, names, DMX addresses and stage position/rotation
   (X/Y/Z + RotX/RotY/RotZ); unpatch fixtures.
 - **Export the show as an MVR** scene (position + rotation) with an embedded GDTF per fixture type
-  (for visualizers, Vectorworks, etc.).
+  (for visualizers, Vectorworks, etc.). Each GDTF carries a body sized for the kind of fixture the
+  type looks like (moving head, profile, fresnel, PAR, LED bar, strobe …), a beam, and a 2D plan
+  symbol, so fixtures read as lamps in a CAD view instead of as boxes.
 - **Fixture editor:** build a fixture type by hand — a list of channels using the show's own
   attributes — or load a GDTF mode, then add it to the show or download it as a gma1
   fixture-library file (`_FIXTURETYPE .TXT`). The attribute picker only offers attributes that exist
   in the loaded show.
 - Add fixtures of any type already in the show.
+- **Create groups** from the patch when generating the show: one per layer, per fixture type, per
+  layer × fixture type, or any combination of those. Groups already in the show are kept.
 - Import an MVR: fixtures whose fixture ID exists are re-addressed, the others are added. Each GDTF
   type/mode is mapped to a gma1 fixture type — or a new type is generated from the GDTF; the DMX
   footprints are compared.
